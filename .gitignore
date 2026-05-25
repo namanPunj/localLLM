@@ -1,0 +1,16 @@
+# Secrets & OAuth
+credentials.json
+token.json
+
+# Runtime
+server.log
+*.db
+*.db-wal
+*.db-shm
+
+# Data directories
+data/
+
+# IDE / OS
+.directory
+.claude/

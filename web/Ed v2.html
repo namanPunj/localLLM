@@ -1,0 +1,2758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ed — Studio Mode (Design Upgrade)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&family=Space+Grotesk:wght@400;500;600;700&family=Geist:wght@300;400;500;600;700&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   Ed — Studio Mode
+   A creative upgrade. No server-call logic touched.
+   ============================================================ */
+
+:root {
+  /* warm ink scale */
+  --ink-0: #08080a;
+  --ink-1: #101013;
+  --ink-2: #16161b;
+  --ink-3: #1d1d23;
+  --ink-4: #26262e;
+  --ink-5: #33333d;
+  --line:        rgba(236, 232, 217, 0.07);
+  --line-strong: rgba(236, 232, 217, 0.14);
+  --hover: rgba(236, 232, 217, 0.04);
+
+  /* text */
+  --text:    #ece8d9;
+  --text-2:  #a09c8e;
+  --text-3:  #6a6759;
+
+  /* signature tri-color */
+  --lime:    #d4ff4d;       /* chats / Ed identity */
+  --lime-dim:#9bbf2f;
+  --peach:   #ff9b6a;       /* workspaces */
+  --peach-dim:#c4633a;
+  --violet:  #b794f6;       /* ghost protocol */
+  --violet-dim:#7c3aed;
+
+  --sky:    #7dd3fc;
+  --danger: #fb7185;
+  --warn:   #fbbf24;
+
+  /* radii */
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+
+  /* sizes */
+  --sidebar-w: 256px;
+  --header-h: 56px;
+  --dock-w: 760px;
+
+  --font-display: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display-style: normal;
+  --font-display-weight: 600;
+  --font-display-letterspacing: -0.04em;
+  --font-ui: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* font themes — applied by data-font on body */
+body[data-font="modern"] {
+  --font-display: "Space Grotesk", -apple-system, sans-serif;
+  --font-display-style: normal;
+  --font-display-weight: 600;
+  --font-display-letterspacing: -0.04em;
+  --font-ui: "Geist", -apple-system, sans-serif;
+}
+body[data-font="editorial"] {
+  --font-display: "Instrument Serif", "Georgia", serif;
+  --font-display-style: italic;
+  --font-display-weight: 400;
+  --font-display-letterspacing: -0.02em;
+  --font-ui: "Geist", -apple-system, sans-serif;
+}
+body[data-font="warm"] {
+  --font-display: "Newsreader", "Georgia", serif;
+  --font-display-style: italic;
+  --font-display-weight: 500;
+  --font-display-letterspacing: -0.015em;
+  --font-ui: "IBM Plex Sans", -apple-system, sans-serif;
+}
+body[data-font="mono"] {
+  --font-display: "JetBrains Mono", ui-monospace, monospace;
+  --font-display-style: italic;
+  --font-display-weight: 600;
+  --font-display-letterspacing: -0.04em;
+  --font-ui: "Geist", -apple-system, sans-serif;
+}
+body[data-font="clean"] {
+  --font-display: "Manrope", -apple-system, sans-serif;
+  --font-display-style: normal;
+  --font-display-weight: 700;
+  --font-display-letterspacing: -0.045em;
+  --font-ui: "Manrope", -apple-system, sans-serif;
+}
+
+/* light theme */
+body.theme-light {
+  --ink-0: #fffefa;
+  --ink-1: #f7f4ec;
+  --ink-2: #f1ede2;
+  --ink-3: #e9e4d6;
+  --ink-4: #ddd6c4;
+  --ink-5: #c8c0ac;
+  --line: rgba(20,18,12,0.08);
+  --line-strong: rgba(20,18,12,0.16);
+  --hover: rgba(20,18,12,0.04);
+  --text: #1a1814;
+  --text-2: #595541;
+  --text-3: #8a8470;
+  --lime: #5d7a0f;
+  --lime-dim: #889e3e;
+  --peach: #cc5a26;
+  --violet: #6d4ad8;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin:0; padding:0; height:100%; }
+body {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--ink-1);
+  background-image:
+    radial-gradient(ellipse 1200px 600px at 0% 0%, rgba(212,255,77,0.025), transparent 60%),
+    radial-gradient(ellipse 800px 400px at 100% 100%, rgba(255,155,106,0.018), transparent 60%);
+  letter-spacing: -0.005em;
+  overflow: hidden;
+}
+
+button { font-family: inherit; cursor: pointer; }
+input, textarea, select { font-family: inherit; }
+:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; border-radius: 4px; }
+
+/* ============================================================
+   APP SHELL
+   ============================================================ */
+.app {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  grid-template-rows: 1fr;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ============================================================
+   SIDEBAR
+   ============================================================ */
+.sidebar {
+  background: var(--ink-0);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.sidebar-top {
+  padding: 18px 16px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.wordmark {
+  font-family: var(--font-display);
+  font-style: var(--font-display-style);
+  font-weight: var(--font-display-weight);
+  letter-spacing: var(--font-display-letterspacing);
+  font-size: 30px;
+  color: var(--text);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  position: relative;
+  user-select: none;
+}
+.wordmark::after {
+  content: "";
+  position: absolute;
+  right: -8px; top: 4px;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--lime);
+  box-shadow: 0 0 10px var(--lime);
+}
+
+.sidebar-icon-btn {
+  width: 30px; height: 30px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text-2);
+  transition: all 120ms ease;
+}
+.sidebar-icon-btn:hover { color: var(--text); background: var(--hover); border-color: var(--line-strong); }
+.sidebar-icon-btn .kbd { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.5px; }
+
+.cmdk-trigger {
+  margin: 0 14px 14px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--text-3);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+.cmdk-trigger:hover { border-color: var(--line-strong); color: var(--text-2); }
+.cmdk-trigger .cmdk-kbd {
+  margin-left: auto;
+  font-family: var(--font-mono); font-size: 10px;
+  background: var(--ink-3); border: 1px solid var(--line);
+  padding: 2px 6px; border-radius: 5px;
+  color: var(--text-2);
+}
+
+.new-btn {
+  margin: 0 14px 16px;
+  padding: 11px 14px;
+  background: linear-gradient(180deg, var(--lime) 0%, #b8e040 100%);
+  color: #0a0a0c;
+  border: none;
+  border-radius: var(--r-sm);
+  font-weight: 600;
+  font-size: 13px;
+  display: flex; align-items: center; gap: 8px;
+  transition: all 150ms ease;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.2) inset, 0 4px 14px rgba(212,255,77,0.18);
+  letter-spacing: -0.005em;
+}
+.new-btn:hover { transform: translateY(-1px); box-shadow: 0 1px 0 rgba(255,255,255,0.2) inset, 0 6px 20px rgba(212,255,77,0.28); }
+.new-btn .plus { width: 16px; height: 16px; stroke-width: 2.5; }
+.new-btn .arrow { margin-left: auto; opacity: 0.4; font-size: 11px; }
+
+.sidebar-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 8px 16px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ink-4) transparent;
+}
+.sidebar-scroll::-webkit-scrollbar { width: 6px; }
+.sidebar-scroll::-webkit-scrollbar-thumb { background: var(--ink-4); border-radius: 3px; }
+
+.sb-section { margin-bottom: 14px; }
+.sb-section-head {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px 4px;
+  color: var(--text-3);
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+}
+.sb-section-head .count {
+  margin-left: auto;
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--text-3); font-weight: 500;
+}
+.sb-section-head .head-action {
+  background: transparent; border: none;
+  color: var(--text-3); font-size: 14px;
+  padding: 0 2px; line-height: 1;
+  opacity: 0; transition: opacity 120ms;
+}
+.sb-section:hover .head-action { opacity: 1; }
+.sb-section-head .head-action:hover { color: var(--text); }
+
+/* ── pinned star row ── */
+.pin-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 120ms;
+}
+.pin-row:hover { background: var(--hover); }
+.pin-row .star { color: var(--lime); flex-shrink: 0; }
+.pin-row .pin-title {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;
+}
+.pin-row .pin-meta { font-family: var(--font-mono); font-size: 10px; color: var(--text-3); }
+
+/* ── workspace cards ── */
+.ws-list { display: flex; flex-direction: column; gap: 3px; padding: 2px; }
+.ws-card {
+  position: relative;
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 11px 9px 13px;
+  border-radius: 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 130ms ease;
+  overflow: hidden;
+}
+.ws-card::before {
+  content: "";
+  position: absolute; left: 0; top: 9px; bottom: 9px;
+  width: 3px; border-radius: 2px;
+  background: var(--peach);
+  opacity: 0.55;
+  transition: opacity 130ms;
+}
+.ws-card:hover { background: var(--hover); }
+.ws-card:hover::before { opacity: 1; }
+.ws-card.active { background: rgba(255,155,106,0.06); border-color: rgba(255,155,106,0.18); }
+.ws-card.active::before { opacity: 1; }
+.ws-card .ws-icon {
+  width: 18px; height: 18px; flex-shrink: 0;
+  color: var(--peach);
+  opacity: 0.85;
+}
+.ws-card .ws-body { flex: 1; min-width: 0; }
+.ws-card .ws-title {
+  font-size: 13px; font-weight: 500; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ws-card .ws-meta {
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--text-3); margin-top: 1px;
+  letter-spacing: -0.01em;
+}
+
+/* ── chat rows ── */
+.chat-list { display: flex; flex-direction: column; padding: 0 2px; }
+.chat-time { 
+  font-size: 9.5px; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--text-3);
+  padding: 10px 11px 4px;
+}
+.chat-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 11px;
+  border-radius: 8px;
+  color: var(--text-2);
+  font-size: 13px;
+  cursor: pointer;
+  position: relative;
+  transition: background 120ms, color 120ms;
+}
+.chat-row:hover { background: var(--hover); color: var(--text); }
+.chat-row.active {
+  background: rgba(212,255,77,0.06);
+  color: var(--text);
+}
+.chat-row.active::before {
+  content: "";
+  position: absolute; left: 3px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 16px; border-radius: 2px;
+  background: var(--lime);
+  box-shadow: 0 0 8px rgba(212,255,77,0.4);
+}
+.chat-row .chat-title {
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-weight: 400;
+}
+.chat-row.active .chat-title { font-weight: 500; }
+.chat-row .chat-dots {
+  opacity: 0; padding: 2px 4px; background: transparent;
+  border: none; color: var(--text-3); border-radius: 4px;
+}
+.chat-row:hover .chat-dots { opacity: 1; }
+.chat-row .chat-dots:hover { background: var(--ink-3); color: var(--text); }
+
+/* ── sidebar footer ── */
+.sidebar-footer {
+  border-top: 1px solid var(--line);
+  padding: 10px;
+  display: flex; gap: 6px;
+}
+.sf-btn {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  background: transparent; border: 1px solid var(--line);
+  color: var(--text-2);
+  padding: 9px 10px;
+  border-radius: 9px;
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  transition: all 120ms ease;
+}
+.sf-btn:hover { color: var(--text); border-color: var(--line-strong); }
+.sf-btn.ghost-on { color: var(--violet); border-color: rgba(183,148,246,0.35); background: rgba(183,148,246,0.06); }
+.sf-btn .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor;
+  opacity: 0.8;
+}
+
+/* ============================================================
+   MAIN
+   ============================================================ */
+.main {
+  display: flex; flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  position: relative;
+}
+
+/* ── header ── */
+.head {
+  height: var(--header-h);
+  display: flex; align-items: center;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--line);
+  gap: 12px;
+  background: var(--ink-1);
+  flex-shrink: 0;
+}
+.head-l { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
+.menu-btn {
+  display: none; width: 32px; height: 32px;
+  align-items: center; justify-content: center;
+  background: transparent; border: none;
+  color: var(--text-2); border-radius: 8px;
+}
+.menu-btn:hover { background: var(--hover); color: var(--text); }
+
+.crumbs {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--text-2);
+  min-width: 0;
+}
+.crumb-sep { color: var(--text-3); opacity: 0.5; }
+.crumb-current {
+  color: var(--text);
+  font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 480px;
+}
+.crumb-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 7px; border-radius: 5px;
+  background: rgba(212,255,77,0.08); color: var(--lime);
+  font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid rgba(212,255,77,0.18);
+}
+.crumb-badge.workspace { background: rgba(255,155,106,0.08); color: var(--peach); border-color: rgba(255,155,106,0.22); }
+.crumb-badge.ghost { background: rgba(183,148,246,0.10); color: var(--violet); border-color: rgba(183,148,246,0.25); }
+
+.head-r { display: flex; align-items: center; gap: 4px; }
+.icon-btn {
+  width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: none;
+  color: var(--text-2); border-radius: 8px;
+  transition: all 120ms;
+}
+.icon-btn:hover { background: var(--hover); color: var(--text); }
+
+/* ============================================================
+   RESOURCES STRIP (workspace mode)
+   ============================================================ */
+.resources {
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, rgba(255,155,106,0.025) 0%, transparent 100%);
+}
+.res-head {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 10px;
+}
+.res-label {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--peach);
+}
+.res-label::before {
+  content: ""; width: 8px; height: 8px; border-radius: 2px;
+  background: var(--peach);
+}
+.res-count { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
+.res-add {
+  margin-left: auto;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 6px;
+  background: transparent; border: 1px dashed var(--line-strong);
+  color: var(--text-2); font-size: 11px; font-weight: 500;
+  transition: all 120ms;
+}
+.res-add:hover { color: var(--peach); border-color: var(--peach); }
+
+.res-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+.res-card {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  text-align: left;
+  transition: all 130ms ease;
+  cursor: pointer;
+  position: relative;
+}
+.res-card:hover { border-color: var(--peach); background: rgba(255,155,106,0.04); transform: translateY(-1px); }
+.res-card:hover .res-open { opacity: 1; }
+.res-icon {
+  width: 30px; height: 30px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--ink-3); border-radius: 8px;
+  font-family: var(--font-mono); font-size: 10px;
+  font-weight: 700; color: var(--peach);
+  flex-shrink: 0;
+}
+.res-icon.pdf { color: #fca5a5; }
+.res-icon.md { color: var(--sky); }
+.res-icon.py { color: var(--lime-dim); }
+.res-icon.img { color: var(--violet); }
+.res-body { flex: 1; min-width: 0; }
+.res-name { font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.res-meta { font-family: var(--font-mono); font-size: 10px; color: var(--text-3); margin-top: 1px; }
+.res-open {
+  position: absolute; right: 8px; top: 8px;
+  font-size: 10px; color: var(--peach);
+  opacity: 0; transition: opacity 120ms;
+}
+
+/* ============================================================
+   CHAT CONTAINER
+   ============================================================ */
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ink-4) transparent;
+  position: relative;
+}
+.scroll::-webkit-scrollbar { width: 8px; }
+.scroll::-webkit-scrollbar-thumb { background: var(--ink-4); border-radius: 4px; }
+
+.chat-area {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 32px 28px 24px;
+  display: flex; flex-direction: column; gap: 28px;
+}
+
+/* ── landing ── */
+.landing {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; flex: 1;
+  padding: 40px 28px;
+  text-align: center;
+  min-height: 100%;
+}
+.landing-inner { max-width: 720px; width: 100%; }
+.landing-eyebrow {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--text-3); letter-spacing: 0.06em;
+  margin-bottom: 24px;
+}
+.landing-eyebrow .pulse {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--lime);
+  box-shadow: 0 0 8px var(--lime);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+.landing h1 {
+  font-family: var(--font-display);
+  font-style: var(--font-display-style);
+  font-size: 80px;
+  line-height: 0.95;
+  margin: 0 0 14px;
+  color: var(--text);
+  font-weight: var(--font-display-weight);
+  letter-spacing: var(--font-display-letterspacing);
+}
+.landing h1 .greet { color: var(--text-2); font-style: italic; }
+.landing h1 .name { color: var(--lime); }
+.landing .sub {
+  font-size: 16px; color: var(--text-2);
+  margin: 0 0 40px;
+  max-width: 460px;
+  margin-left: auto; margin-right: auto;
+}
+
+.landing-chips {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+  margin-bottom: 28px;
+}
+.landing-chip {
+  text-align: left;
+  padding: 16px 18px;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: all 160ms ease;
+  position: relative;
+  overflow: hidden;
+}
+.landing-chip:hover {
+  border-color: var(--line-strong);
+  background: var(--ink-3);
+  transform: translateY(-2px);
+}
+.landing-chip:hover .chip-arrow { transform: translateX(2px); color: var(--lime); }
+.landing-chip .chip-icon {
+  font-size: 18px;
+  width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--ink-3); border-radius: 8px;
+  margin-bottom: 10px;
+}
+.landing-chip .chip-title {
+  font-size: 13px; font-weight: 500; color: var(--text);
+  line-height: 1.4;
+}
+.landing-chip .chip-cat {
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--text-3); margin-top: 4px;
+  letter-spacing: 0.05em; text-transform: uppercase;
+}
+.landing-chip .chip-arrow {
+  position: absolute; top: 16px; right: 16px;
+  color: var(--text-3); font-size: 14px;
+  transition: all 160ms;
+}
+
+.recent-row {
+  display: flex; gap: 8px;
+  align-items: center;
+  font-size: 12px; color: var(--text-3);
+  margin-top: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.recent-row .recent-label { font-family: var(--font-mono); letter-spacing: 0.05em; text-transform: uppercase; font-size: 10px; }
+.recent-link {
+  color: var(--text-2);
+  padding: 4px 10px;
+  border-radius: 100px;
+  border: 1px solid var(--line);
+  background: var(--ink-2);
+  text-decoration: none;
+  transition: all 120ms;
+  font-size: 12px;
+}
+.recent-link:hover { color: var(--lime); border-color: rgba(212,255,77,0.3); }
+
+/* ── messages ── */
+.msg-block { display: flex; flex-direction: column; gap: 8px; }
+.msg-meta {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; color: var(--text-3);
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+.msg-meta.right { justify-content: flex-end; }
+.msg-meta .sender { color: var(--text-2); font-weight: 600; font-family: var(--font-ui); font-size: 12px; letter-spacing: 0; }
+.msg-meta .sender.ed { color: var(--lime); font-family: var(--font-display); font-style: var(--font-display-style); font-size: 14px; font-weight: var(--font-display-weight); letter-spacing: var(--font-display-letterspacing); }
+
+/* user bubble */
+.user-msg {
+  align-self: flex-end;
+  max-width: 78%;
+  padding: 12px 16px;
+  background: var(--ink-3);
+  border: 1px solid var(--line);
+  border-radius: 14px 14px 4px 14px;
+  font-size: 14px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  position: relative;
+  transition: border-color 120ms;
+}
+.user-msg:hover { border-color: var(--line-strong); }
+.user-msg .msg-actions {
+  position: absolute; top: -10px; right: 10px;
+  display: flex; gap: 2px;
+  background: var(--ink-2); border: 1px solid var(--line);
+  border-radius: 7px; padding: 2px;
+  opacity: 0; transition: opacity 120ms;
+}
+.user-msg:hover .msg-actions { opacity: 1; }
+.msg-actions button {
+  width: 22px; height: 22px;
+  background: transparent; border: none;
+  color: var(--text-3); border-radius: 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 11px;
+}
+.msg-actions button:hover { background: var(--ink-4); color: var(--text); }
+
+/* markdown preview/edit pill on user message */
+.user-msg .pe-toggle {
+  display: inline-flex;
+  font-family: var(--font-mono); font-size: 9px;
+  margin-bottom: 6px;
+  background: var(--ink-4); border-radius: 5px;
+  padding: 1px;
+  gap: 1px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.user-msg .pe-toggle span {
+  padding: 2px 7px; border-radius: 4px;
+  color: var(--text-3); cursor: pointer;
+}
+.user-msg .pe-toggle span.on { background: var(--ink-1); color: var(--text); }
+
+.user-msg .attached-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 8px;
+  background: var(--ink-2); border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 11px; color: var(--text-2);
+  margin-bottom: 8px;
+  font-family: var(--font-mono);
+}
+
+/* bot message */
+.bot-msg {
+  font-size: 14.5px; line-height: 1.65;
+  color: var(--text);
+  max-width: 100%;
+}
+.bot-msg p { margin: 0 0 12px; }
+.bot-msg p:last-child { margin-bottom: 0; }
+.bot-msg strong { color: var(--text); font-weight: 600; }
+.bot-msg em { font-style: italic; color: var(--text-2); }
+.bot-msg h2 {
+  font-family: var(--font-display);
+  font-style: var(--font-display-style); font-weight: var(--font-display-weight);
+  font-size: 22px;
+  margin: 24px 0 10px;
+  color: var(--text);
+  letter-spacing: var(--font-display-letterspacing);
+}
+.bot-msg ul { padding-left: 22px; margin: 0 0 12px; }
+.bot-msg li { margin-bottom: 4px; }
+.bot-msg li::marker { color: var(--lime); }
+.bot-msg code:not(pre code) {
+  font-family: var(--font-mono);
+  background: var(--ink-3);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 12.5px;
+  color: var(--lime);
+  border: 1px solid var(--line);
+}
+
+/* code card */
+.code-card {
+  background: var(--ink-0);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  margin: 14px 0;
+  overflow: hidden;
+}
+.code-card-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--ink-2);
+}
+.code-card-dots { display: flex; gap: 5px; }
+.code-card-dots span { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-5); }
+.code-card-name {
+  font-family: var(--font-mono); font-size: 11px; color: var(--text-2);
+}
+.code-card-lang {
+  font-family: var(--font-mono); font-size: 9px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-3);
+  padding: 2px 6px; border-radius: 4px;
+  background: var(--ink-3); margin-left: auto;
+}
+.code-card-open {
+  font-family: var(--font-ui); font-size: 11px;
+  color: var(--lime); font-weight: 600;
+  background: transparent; border: none;
+}
+.code-card pre {
+  margin: 0;
+  padding: 14px 16px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  overflow-x: auto;
+  color: var(--text);
+}
+.code-card .kw { color: var(--violet); }
+.code-card .str { color: var(--peach); }
+.code-card .num { color: var(--sky); }
+.code-card .cm { color: var(--text-3); font-style: italic; }
+.code-card .fn { color: var(--lime); }
+
+/* thread followup inline */
+.thread-line {
+  display: flex; align-items: center; gap: 8px;
+  margin: 12px 0;
+  padding: 8px 12px;
+  border-left: 2px solid var(--lime);
+  background: rgba(212,255,77,0.04);
+  border-radius: 0 8px 8px 0;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.thread-line .thread-icon { color: var(--lime); font-family: var(--font-mono); font-size: 12px; }
+.thread-line .thread-q { color: var(--text); font-style: italic; }
+
+/* research blob */
+.blob-bar {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-bottom: 10px;
+}
+.blob-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px;
+  background: var(--ink-2); border: 1px solid var(--line);
+  border-radius: 100px;
+  font-size: 11px; color: var(--text-2);
+  font-family: var(--font-mono);
+}
+.blob-pill .blob-icon { color: var(--lime); font-size: 10px; }
+.blob-pill.thinking .blob-icon { animation: spin 1.5s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* msg actions row below bot message */
+.bot-actions {
+  display: flex; gap: 4px;
+  margin-top: 8px;
+  opacity: 0; transition: opacity 150ms;
+}
+.msg-block:hover .bot-actions { opacity: 1; }
+.bot-actions button {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 8px;
+  background: transparent; border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-3);
+  font-size: 11px; font-family: var(--font-mono);
+}
+.bot-actions button:hover { background: var(--ink-3); color: var(--text); border-color: var(--line); }
+
+/* ============================================================
+   CONTEXT METER (horizontal segmented bar above dock)
+   ============================================================ */
+.ctx-bar {
+  max-width: var(--dock-w);
+  margin: 0 auto;
+  padding: 0 28px 8px;
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-3);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.ctx-bar:hover .ctx-track { background: var(--ink-3); }
+.ctx-bar:hover .ctx-pct { color: var(--text); }
+.ctx-track {
+  flex: 1; height: 6px;
+  background: var(--ink-2);
+  border-radius: 3px;
+  overflow: hidden;
+  display: flex;
+  transition: background 120ms;
+}
+.ctx-seg { height: 100%; transition: filter 120ms; }
+.ctx-seg.system   { background: var(--sky); }
+.ctx-seg.history  { background: var(--lime); }
+.ctx-seg.files    { background: var(--peach); }
+.ctx-seg.rag      { background: var(--violet); }
+.ctx-seg.user_turn{ background: var(--warn); }
+.ctx-pct { color: var(--text-2); font-weight: 600; transition: color 120ms; }
+.ctx-tokens { color: var(--text-3); }
+
+/* expanded context panel */
+.ctx-panel {
+  display: none;
+  max-width: var(--dock-w);
+  margin: 0 auto 10px;
+  padding: 14px 18px;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.ctx-panel.open { display: block; }
+.ctx-panel-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 14px 18px;
+  margin-bottom: 12px;
+}
+.ctx-stat .label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 10px; font-family: var(--font-mono);
+  color: var(--text-3); letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.ctx-stat .label .swatch { width: 8px; height: 8px; border-radius: 2px; }
+.ctx-stat .val { font-family: var(--font-mono); font-size: 14px; color: var(--text); font-weight: 600; }
+.ctx-stat .val .of { color: var(--text-3); font-weight: 400; font-size: 11px; }
+.ctx-actions { display: flex; gap: 6px; }
+.ctx-action {
+  flex: 1; padding: 7px 10px;
+  background: var(--ink-3); border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--text-2); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.04em; text-transform: uppercase;
+}
+.ctx-action:hover { color: var(--text); border-color: var(--line-strong); }
+.ctx-action.danger:hover { color: var(--danger); border-color: rgba(251,113,133,0.3); }
+
+/* ============================================================
+   INPUT DOCK
+   ============================================================ */
+.dock-wrap {
+  padding: 12px 28px 28px;
+  position: relative;
+  background:
+    linear-gradient(180deg, transparent 0%, var(--ink-1) 40%);
+}
+
+.attached-row {
+  max-width: var(--dock-w);
+  margin: 0 auto 8px;
+  display: flex; gap: 6px; flex-wrap: wrap;
+}
+.file-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 8px 5px 10px;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font-size: 12px; color: var(--text);
+}
+.file-chip .file-icon {
+  width: 18px; height: 18px;
+  background: var(--ink-3); border-radius: 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 8.5px; font-weight: 700;
+  color: var(--lime);
+}
+.file-chip .file-x {
+  background: transparent; border: none; color: var(--text-3);
+  padding: 0 2px; font-size: 12px; line-height: 1;
+}
+.file-chip .file-x:hover { color: var(--danger); }
+
+.dock {
+  position: relative;
+  max-width: var(--dock-w);
+  margin: 0 auto;
+  background: var(--ink-2);
+  border: 1px solid var(--line-strong);
+  border-radius: 22px;
+  padding: 12px 14px 10px;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.04) inset,
+    0 20px 60px -20px rgba(0,0,0,0.6);
+  transition: border-color 180ms;
+}
+.dock:focus-within {
+  border-color: rgba(212,255,77,0.35);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.04) inset,
+    0 0 0 4px rgba(212,255,77,0.06),
+    0 20px 60px -20px rgba(0,0,0,0.6);
+}
+
+.dock textarea {
+  width: 100%;
+  background: transparent; border: none; outline: none;
+  resize: none;
+  font-size: 15px;
+  color: var(--text);
+  font-family: var(--font-ui);
+  line-height: 1.5;
+  padding: 6px 4px 8px;
+  max-height: 200px;
+}
+.dock textarea::placeholder { color: var(--text-3); }
+
+.dock-actions {
+  display: flex; align-items: center; gap: 4px;
+  padding-top: 4px;
+}
+.dock-btn {
+  width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--text-2);
+  transition: all 120ms;
+}
+.dock-btn:hover { background: var(--ink-3); color: var(--text); }
+.dock-btn.active { color: var(--lime); }
+
+.think-toggle {
+  display: inline-flex; align-items: center;
+  background: var(--ink-3); border: 1px solid var(--line);
+  border-radius: 100px;
+  padding: 2px;
+  margin-left: auto;
+  position: relative;
+}
+.think-toggle button {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 11px;
+  background: transparent; border: none;
+  color: var(--text-3); font-size: 11px; font-weight: 600;
+  border-radius: 100px;
+  letter-spacing: 0.03em;
+  transition: color 140ms;
+}
+.think-toggle button.active {
+  color: #0a0a0c;
+  background: var(--lime);
+  box-shadow: 0 1px 6px rgba(212,255,77,0.3);
+}
+.think-toggle button .ic { font-size: 13px; line-height: 1; }
+
+.send-btn {
+  width: 34px; height: 34px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--lime);
+  border: none; border-radius: 9px;
+  color: #0a0a0c;
+  margin-left: 4px;
+  box-shadow: 0 4px 12px rgba(212,255,77,0.2);
+  transition: all 140ms;
+}
+.send-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(212,255,77,0.32); }
+.send-btn svg { width: 16px; height: 16px; }
+
+/* ── stickman on top of dock ── */
+.stickman {
+  position: absolute;
+  bottom: calc(100% - 26px);
+  right: 32px;
+  width: 60px; height: 62px;
+  color: var(--text-2);
+  z-index: 2;
+  pointer-events: none;
+}
+.stickman svg { width: 100%; height: 100%; }
+
+/* dock hint */
+.dock-hint {
+  max-width: var(--dock-w);
+  margin: 8px auto 0;
+  display: flex; justify-content: center; gap: 18px;
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--text-3); letter-spacing: 0.05em;
+}
+.dock-hint .kbd-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.dock-hint .kbd-chip span {
+  background: var(--ink-3); border: 1px solid var(--line);
+  padding: 1px 5px; border-radius: 4px;
+  font-size: 10px;
+}
+
+/* ============================================================
+   COMMAND PALETTE
+   ============================================================ */
+.palette-overlay {
+  position: fixed; inset: 0;
+  background: rgba(8,8,10,0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 500;
+  display: none;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 14vh;
+}
+.palette-overlay.open { display: flex; animation: paletteFade 180ms ease; }
+@keyframes paletteFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.palette {
+  width: min(640px, 92vw);
+  background: var(--ink-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+  animation: paletteSlide 220ms cubic-bezier(0.3, 0.8, 0.3, 1);
+}
+@keyframes paletteSlide {
+  from { transform: translateY(-12px) scale(0.98); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+.palette-search {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.palette-search input {
+  flex: 1;
+  background: transparent; border: none; outline: none;
+  font-size: 17px; color: var(--text);
+  font-family: var(--font-ui);
+}
+.palette-search input::placeholder { color: var(--text-3); }
+.palette-search .esc {
+  font-family: var(--font-mono); font-size: 10px;
+  background: var(--ink-3); border: 1px solid var(--line);
+  padding: 2px 6px; border-radius: 4px; color: var(--text-3);
+}
+.palette-list { max-height: 360px; overflow-y: auto; padding: 8px; }
+.pal-group { margin-bottom: 4px; }
+.pal-group-label {
+  padding: 6px 12px 4px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--text-3);
+  font-family: var(--font-mono);
+}
+.pal-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 14px; color: var(--text);
+  cursor: pointer;
+}
+.pal-item.sel { background: var(--ink-3); }
+.pal-item:hover { background: var(--ink-3); }
+.pal-item .pal-icon {
+  width: 22px; height: 22px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  color: var(--text-2);
+  flex-shrink: 0;
+}
+.pal-item .pal-icon.lime { color: var(--lime); }
+.pal-item .pal-icon.peach { color: var(--peach); }
+.pal-item .pal-title { flex: 1; }
+.pal-item .pal-sub { color: var(--text-3); font-size: 12px; }
+.pal-item .pal-shortcut {
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--text-3);
+}
+.palette-foot {
+  display: flex; align-items: center; gap: 14px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--line);
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--text-3);
+}
+.palette-foot span b {
+  color: var(--text-2); font-weight: 600;
+  background: var(--ink-3); border: 1px solid var(--line);
+  padding: 1px 5px; border-radius: 4px; margin-right: 4px;
+}
+
+/* ============================================================
+   SETTINGS PANEL (slide from right)
+   ============================================================ */
+.settings-overlay {
+  position: fixed; inset: 0;
+  background: rgba(8,8,10,0.55);
+  backdrop-filter: blur(6px);
+  z-index: 480;
+  display: none;
+}
+.settings-overlay.open { display: block; }
+.settings-panel {
+  position: fixed; top: 0; right: 0; bottom: 0;
+  width: min(440px, 100vw);
+  background: var(--ink-1);
+  border-left: 1px solid var(--line-strong);
+  z-index: 490;
+  display: none;
+  flex-direction: column;
+  box-shadow: -20px 0 60px rgba(0,0,0,0.4);
+}
+.settings-panel.open { display: flex; }
+.s-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.s-head h2 {
+  margin: 0;
+  font-family: var(--font-display); font-style: var(--font-display-style);
+  font-size: 28px; font-weight: var(--font-display-weight); color: var(--text);
+  letter-spacing: var(--font-display-letterspacing);
+}
+.s-head .close { margin-left: auto; }
+.s-tabs {
+  display: flex; gap: 2px;
+  padding: 4px;
+  margin: 12px 16px 0;
+  background: var(--ink-2);
+  border-radius: 9px;
+}
+.s-tab {
+  flex: 1;
+  padding: 6px 10px;
+  background: transparent; border: none;
+  border-radius: 6px;
+  color: var(--text-3); font-size: 12px; font-weight: 600;
+  letter-spacing: 0.03em;
+  transition: all 120ms;
+}
+.s-tab.active { background: var(--ink-3); color: var(--text); }
+.s-body { flex: 1; overflow-y: auto; padding: 20px; }
+.s-section { margin-bottom: 28px; }
+.s-section-title {
+  font-family: var(--font-display); font-style: var(--font-display-style);
+  font-size: 18px; font-weight: var(--font-display-weight);
+  color: var(--text); margin: 0 0 14px;
+  letter-spacing: var(--font-display-letterspacing);
+}
+.s-row {
+  display: flex; flex-direction: column; gap: 6px;
+  margin-bottom: 16px;
+}
+.s-row-head {
+  display: flex; align-items: center; gap: 10px;
+}
+.s-row-label {
+  font-size: 13px; font-weight: 500; color: var(--text);
+  flex: 1;
+}
+.s-row-hint { font-size: 12px; color: var(--text-2); line-height: 1.4; }
+.s-toggle {
+  width: 38px; height: 22px;
+  background: var(--ink-3);
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  padding: 2px;
+  position: relative;
+  transition: all 160ms;
+}
+.s-toggle .thumb {
+  width: 16px; height: 16px;
+  background: var(--text-2);
+  border-radius: 50%;
+  transition: all 180ms cubic-bezier(0.3, 0.8, 0.4, 1.2);
+}
+.s-toggle.on { background: var(--lime); border-color: var(--lime); }
+.s-toggle.on .thumb { transform: translateX(16px); background: #0a0a0c; }
+
+.s-range {
+  display: flex; align-items: center; gap: 12px;
+}
+.s-range .track {
+  flex: 1; height: 4px; border-radius: 2px;
+  background: var(--ink-3);
+  position: relative;
+}
+.s-range .fill {
+  position: absolute; top: 0; bottom: 0; left: 0;
+  background: var(--lime); border-radius: 2px;
+}
+.s-range .thumb {
+  position: absolute; top: 50%; transform: translate(-50%, -50%);
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--text); border: 2px solid var(--lime);
+}
+.s-range .val {
+  font-family: var(--font-mono); font-size: 12px; color: var(--text);
+  min-width: 28px; text-align: right; font-weight: 600;
+}
+
+.memory-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.mem-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px;
+  background: var(--ink-2); border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13px; color: var(--text);
+}
+.mem-item .mem-x {
+  margin-left: auto; background: transparent; border: none;
+  color: var(--text-3); font-size: 13px;
+}
+.mem-item .mem-x:hover { color: var(--danger); }
+.mem-add-row {
+  display: flex; gap: 6px;
+}
+.mem-add-row input {
+  flex: 1;
+  background: var(--ink-2); border: 1px solid var(--line);
+  color: var(--text); border-radius: 7px;
+  padding: 8px 10px; font-size: 12.5px;
+  outline: none;
+}
+.mem-add-row input:focus { border-color: var(--lime); }
+.mem-add-btn {
+  padding: 0 12px;
+  background: var(--ink-3); border: 1px solid var(--line);
+  color: var(--text); border-radius: 7px;
+  font-size: 16px;
+}
+
+.s-danger {
+  margin-top: 12px;
+  padding: 16px;
+  border: 1px solid rgba(251,113,133,0.25);
+  background: rgba(251,113,133,0.04);
+  border-radius: 10px;
+}
+.s-danger-title {
+  font-family: var(--font-display); font-style: var(--font-display-style);
+  font-weight: var(--font-display-weight);
+  font-size: 17px; color: var(--danger); margin: 0 0 6px;
+  letter-spacing: var(--font-display-letterspacing);
+}
+.s-danger-hint { font-size: 12px; color: var(--text-2); margin-bottom: 10px; line-height: 1.4; }
+.s-danger-btn {
+  padding: 7px 14px;
+  background: var(--danger); border: none;
+  color: white; border-radius: 7px;
+  font-size: 12px; font-weight: 600;
+}
+
+/* ============================================================
+   ROUTINES PAGE
+   ============================================================ */
+.routines-page {
+  position: fixed; inset: 0;
+  background: var(--ink-1);
+  z-index: 470;
+  display: none;
+  flex-direction: column;
+}
+.routines-page.open { display: flex; }
+.rt-head {
+  display: flex; align-items: center; gap: 14px;
+  padding: 20px 28px;
+  border-bottom: 1px solid var(--line);
+}
+.rt-head h2 {
+  margin: 0; font-family: var(--font-display); font-style: var(--font-display-style);
+  font-size: 36px; font-weight: var(--font-display-weight); letter-spacing: var(--font-display-letterspacing);
+}
+.rt-head .sub { font-size: 13px; color: var(--text-2); margin-left: 4px; }
+.rt-close { margin-left: auto; }
+
+.rt-body {
+  flex: 1; overflow-y: auto;
+  display: grid;
+  grid-template-columns: 400px 1fr;
+  gap: 0;
+  min-height: 0;
+}
+.rt-form {
+  padding: 24px;
+  border-right: 1px solid var(--line);
+  background: var(--ink-0);
+  overflow-y: auto;
+}
+.rt-form h3 {
+  font-family: var(--font-display); font-style: var(--font-display-style); font-size: 22px;
+  font-weight: var(--font-display-weight); letter-spacing: var(--font-display-letterspacing); margin: 0 0 18px;
+}
+.rt-field { margin-bottom: 14px; }
+.rt-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); margin-bottom: 6px; display: block; }
+.rt-input {
+  width: 100%;
+  padding: 9px 12px;
+  background: var(--ink-2); border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13px; color: var(--text);
+  outline: none; transition: border-color 120ms;
+}
+.rt-input:focus { border-color: var(--lime); }
+.rt-input.tarea { min-height: 64px; resize: vertical; font-family: var(--font-ui); }
+.rt-segment {
+  display: flex; gap: 4px; padding: 3px;
+  background: var(--ink-2); border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.rt-segment button {
+  flex: 1; padding: 6px 10px;
+  background: transparent; border: none;
+  color: var(--text-3); font-size: 12px; font-weight: 600;
+  border-radius: 6px;
+}
+.rt-segment button.active { background: var(--ink-3); color: var(--text); }
+.rt-time-row { display: flex; gap: 8px; }
+.rt-save {
+  width: 100%;
+  margin-top: 8px;
+  padding: 11px;
+  background: var(--lime); color: #0a0a0c;
+  border: none; border-radius: 9px;
+  font-size: 13px; font-weight: 600;
+  letter-spacing: 0.01em;
+  box-shadow: 0 4px 14px rgba(212,255,77,0.18);
+}
+
+.rt-list {
+  padding: 24px;
+  overflow-y: auto;
+}
+.rt-list-head {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 16px;
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--text-3); letter-spacing: 0.06em; text-transform: uppercase;
+}
+.rt-list-head .count {
+  background: var(--ink-3); padding: 2px 7px; border-radius: 4px; color: var(--text);
+}
+.rt-list-head .filter {
+  margin-left: auto;
+  display: flex; gap: 4px;
+}
+.rt-list-head .filter button {
+  background: transparent; border: 1px solid var(--line);
+  padding: 3px 9px; border-radius: 5px;
+  color: var(--text-2); font-size: 10px; letter-spacing: 0.04em;
+  font-family: var(--font-mono); text-transform: uppercase;
+}
+.rt-list-head .filter button.active { background: var(--ink-3); color: var(--text); border-color: var(--line-strong); }
+
+.rt-cat { margin-bottom: 22px; }
+.rt-cat-title {
+  font-family: var(--font-display); font-style: var(--font-display-style);
+  font-weight: var(--font-display-weight); letter-spacing: var(--font-display-letterspacing);
+  font-size: 18px; margin: 0 0 10px; color: var(--text-2);
+}
+
+.rt-card {
+  display: grid;
+  grid-template-columns: 6px 60px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px 14px 0;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  margin-bottom: 8px;
+  overflow: hidden;
+  transition: border-color 130ms;
+}
+.rt-card:hover { border-color: var(--line-strong); }
+.rt-card .accent {
+  height: 100%;
+  background: var(--lime);
+}
+.rt-card.weekly .accent { background: var(--peach); }
+.rt-card.monthly .accent { background: var(--violet); }
+.rt-card.once .accent { background: var(--sky); }
+.rt-card .time {
+  font-family: var(--font-mono); font-size: 18px;
+  color: var(--text); font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.rt-card .time .ampm { font-size: 11px; color: var(--text-3); margin-left: 2px; }
+.rt-card .body { min-width: 0; }
+.rt-card .name { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+.rt-card .prompt { font-size: 12px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rt-card .meta { font-family: var(--font-mono); font-size: 10px; color: var(--text-3); margin-top: 3px; letter-spacing: 0.04em; text-transform: uppercase; }
+.rt-card .toggle-icon {
+  width: 36px; height: 22px;
+  background: var(--lime); border-radius: 100px;
+  position: relative; padding: 2px;
+  margin-right: 6px;
+}
+.rt-card .toggle-icon::after {
+  content: ""; position: absolute; top: 2px; left: 16px;
+  width: 16px; height: 16px;
+  background: #0a0a0c; border-radius: 50%;
+}
+.rt-card.off .toggle-icon { background: var(--ink-3); }
+.rt-card.off .toggle-icon::after { left: 2px; background: var(--text-3); }
+.rt-card.off { opacity: 0.6; }
+
+/* ============================================================
+   DRAG-DROP OVERLAY
+   ============================================================ */
+.drop-overlay {
+  position: absolute; inset: 0;
+  display: none;
+  align-items: center; justify-content: center;
+  background: rgba(212,255,77,0.06);
+  border: 2px dashed var(--lime);
+  border-radius: 12px;
+  margin: 14px;
+  z-index: 100;
+  pointer-events: none;
+}
+.drop-overlay.show { display: flex; }
+.drop-content {
+  text-align: center;
+}
+.drop-content .icon {
+  font-size: 48px; color: var(--lime);
+  margin-bottom: 8px;
+}
+.drop-content h3 {
+  font-family: var(--font-display); font-style: var(--font-display-style);
+  font-weight: var(--font-display-weight); letter-spacing: var(--font-display-letterspacing);
+  font-size: 28px; margin: 0 0 6px; color: var(--text);
+}
+.drop-content p { color: var(--text-2); margin: 0; font-size: 13px; }
+
+/* ============================================================
+   GHOST MODE
+   ============================================================ */
+body.ghost-active {
+  background-image:
+    radial-gradient(ellipse 1000px 600px at 30% 0%, rgba(183,148,246,0.10), transparent 60%),
+    radial-gradient(ellipse 800px 400px at 70% 100%, rgba(124,58,237,0.08), transparent 60%);
+}
+body.ghost-active {
+  --lime: var(--violet);
+  --lime-dim: var(--violet-dim);
+}
+body.ghost-active .wordmark::after { background: var(--violet); box-shadow: 0 0 10px var(--violet); }
+
+/* ============================================================
+   FONT PICKER
+   ============================================================ */
+.font-picker {
+  position: fixed;
+  top: 14px; right: 14px;
+  z-index: 610;
+  font-family: var(--font-ui);
+}
+.fp-toggle {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 7px 12px 7px 10px;
+  background: rgba(16,16,19,0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--line-strong);
+  border-radius: 100px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.3);
+}
+.fp-toggle:hover { border-color: var(--lime); color: var(--lime); }
+.fp-aa {
+  font-family: "Newsreader", serif;
+  font-style: italic;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--lime);
+}
+.fp-chev { font-size: 9px; opacity: 0.6; }
+.fp-current { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-2); }
+body.ghost-active .fp-aa { color: var(--violet); }
+
+.fp-menu {
+  position: absolute;
+  top: calc(100% + 6px); right: 0;
+  width: 260px;
+  background: rgba(16,16,19,0.96);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  padding: 8px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+  animation: fpMenuIn 160ms cubic-bezier(0.3, 0.8, 0.3, 1);
+}
+@keyframes fpMenuIn {
+  from { opacity: 0; transform: translateY(-4px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.fp-menu-title {
+  padding: 6px 10px 8px;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-3);
+  font-family: var(--font-mono);
+}
+.fp-opt {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 2px 14px;
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  text-align: left;
+  color: var(--text);
+  transition: all 130ms ease;
+  margin-bottom: 2px;
+}
+.fp-opt:hover { background: var(--ink-3); border-color: var(--line); }
+.fp-opt.active { background: rgba(212,255,77,0.06); border-color: rgba(212,255,77,0.25); }
+.fp-opt-name {
+  font-size: 16px;
+  color: var(--text);
+  grid-column: 1;
+  line-height: 1.1;
+}
+.fp-opt-sample {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  color: var(--lime);
+  align-self: center;
+}
+.fp-opt-meta {
+  grid-column: 1;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-3);
+  letter-spacing: 0.02em;
+  margin-top: 1px;
+}
+
+@media (max-width: 720px) {
+  .font-picker { top: 10px; right: 10px; }
+  .fp-current { display: none; }
+  .fp-menu { width: 240px; }
+}
+
+/* ============================================================
+   SCENE SWITCHER (the floating preview chrome)
+   ============================================================ */
+.switcher {
+  position: fixed;
+  bottom: 16px; left: 50%;
+  transform: translateX(-50%);
+  background: rgba(16,16,19,0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--line-strong);
+  border-radius: 100px;
+  padding: 4px;
+  display: flex;
+  gap: 2px;
+  z-index: 600;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.4);
+  font-family: var(--font-ui);
+}
+.switcher button {
+  padding: 7px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 100px;
+  color: var(--text-2);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  transition: all 130ms;
+}
+.switcher button:hover { color: var(--text); }
+.switcher button.active {
+  background: var(--text);
+  color: var(--ink-1);
+}
+body.ghost-active .switcher button.active { background: var(--violet); color: var(--ink-0); }
+
+.switcher .div {
+  width: 1px; background: var(--line); margin: 4px 2px;
+}
+
+/* ============================================================
+   MOBILE
+   ============================================================ */
+body.is-mobile .app {
+  grid-template-columns: 1fr;
+}
+body.is-mobile .sidebar {
+  position: fixed; top: 0; left: 0; bottom: 0;
+  width: 280px;
+  z-index: 300;
+  transform: translateX(-100%);
+  box-shadow: 8px 0 24px rgba(0,0,0,0.4);
+  transition: transform 220ms ease;
+}
+body.is-mobile .sidebar.open { transform: translateX(0); }
+body.is-mobile .menu-btn { display: inline-flex; }
+body.is-mobile .landing h1 { font-size: 56px; }
+body.is-mobile .head { padding: 0 14px; }
+body.is-mobile .chat-area { padding: 24px 16px 12px; }
+body.is-mobile .dock-wrap { padding: 8px 14px 18px; }
+body.is-mobile .ctx-bar { padding: 0 14px 8px; font-size: 9.5px; }
+body.is-mobile .landing-chips { grid-template-columns: 1fr 1fr; }
+body.is-mobile .stickman { right: 16px; width: 50px; }
+body.is-mobile .crumb-current { max-width: 180px; }
+body.is-mobile .head-r .icon-btn.hide-mobile { display: none; }
+
+@media (max-width: 720px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0;
+    width: 280px; z-index: 300;
+    transform: translateX(-100%);
+    transition: transform 220ms ease;
+  }
+  .sidebar.open { transform: translateX(0); }
+  .menu-btn { display: inline-flex; }
+  .landing h1 { font-size: 56px; }
+  .head { padding: 0 14px; }
+  .chat-area { padding: 24px 16px 12px; }
+  .dock-wrap { padding: 8px 14px 18px; }
+  .landing-chips { grid-template-columns: 1fr 1fr; }
+  .stickman { right: 16px; width: 50px; }
+  .switcher { padding: 3px; }
+  .switcher button { padding: 6px 9px; font-size: 11px; }
+  .rt-body { grid-template-columns: 1fr; }
+  .crumb-current { max-width: 180px; }
+}
+
+</style>
+</head>
+<body class="theme-dark" data-font="modern" data-screen-label="Ed Studio Mode">
+
+<!-- ============================================================
+     SIDEBAR
+     ============================================================ -->
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-top">
+      <span class="wordmark">Ed</span>
+      <button class="sidebar-icon-btn" id="closeMobileSidebar" title="Settings" aria-label="Settings" onclick="openSettings()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+
+    <button class="cmdk-trigger" onclick="openPalette()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      Search or jump to…
+      <span class="cmdk-kbd">⌘K</span>
+    </button>
+
+    <button class="new-btn" id="newBtn">
+      <svg class="plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      New conversation
+      <span class="arrow">⏎</span>
+    </button>
+
+    <div class="sidebar-scroll">
+      <!-- PINNED -->
+      <div class="sb-section">
+        <div class="sb-section-head">
+          <span>Pinned</span>
+          <span class="count">2</span>
+        </div>
+        <div class="pin-row">
+          <svg class="star" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <span class="pin-title">Python migration plan</span>
+          <span class="pin-meta">2d</span>
+        </div>
+        <div class="pin-row">
+          <svg class="star" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <span class="pin-title">Recipe ideas for fall</span>
+          <span class="pin-meta">1w</span>
+        </div>
+      </div>
+
+      <!-- WORKSPACES -->
+      <div class="sb-section">
+        <div class="sb-section-head">
+          <span>Workspaces</span>
+          <span class="count">3</span>
+          <button class="head-action" title="New workspace">+</button>
+        </div>
+        <div class="ws-list">
+          <div class="ws-card" id="ws-q4">
+            <svg class="ws-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 22 8.5 12 15 2 8.5 12 2"/><polyline points="2 15.5 12 22 22 15.5"/></svg>
+            <div class="ws-body">
+              <div class="ws-title">Q4 Planning</div>
+              <div class="ws-meta">3 files · 12 chats</div>
+            </div>
+          </div>
+          <div class="ws-card" id="ws-job">
+            <svg class="ws-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 22 8.5 12 15 2 8.5 12 2"/><polyline points="2 15.5 12 22 22 15.5"/></svg>
+            <div class="ws-body">
+              <div class="ws-title">Job search 2026</div>
+              <div class="ws-meta">12 files · 8 chats</div>
+            </div>
+          </div>
+          <div class="ws-card" id="ws-recipe">
+            <svg class="ws-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 22 8.5 12 15 2 8.5 12 2"/><polyline points="2 15.5 12 22 22 15.5"/></svg>
+            <div class="ws-body">
+              <div class="ws-title">Recipe collection</div>
+              <div class="ws-meta">7 files · 4 chats</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CHATS -->
+      <div class="sb-section">
+        <div class="sb-section-head">
+          <span>Chats</span>
+          <span class="count">24</span>
+          <button class="head-action" title="New chat">+</button>
+        </div>
+        <div class="chat-list">
+          <div class="chat-time">Today</div>
+          <div class="chat-row active" id="chat-transformer">
+            <span class="chat-title">How transformers work, plainly</span>
+            <button class="chat-dots">⋯</button>
+          </div>
+          <div class="chat-row">
+            <span class="chat-title">Latest news roundup</span>
+            <button class="chat-dots">⋯</button>
+          </div>
+          <div class="chat-row">
+            <span class="chat-title">venv vs poetry</span>
+            <button class="chat-dots">⋯</button>
+          </div>
+          <div class="chat-time">Yesterday</div>
+          <div class="chat-row">
+            <span class="chat-title">Christmas gift ideas for siblings</span>
+            <button class="chat-dots">⋯</button>
+          </div>
+          <div class="chat-row">
+            <span class="chat-title">Rewrite blog intro</span>
+            <button class="chat-dots">⋯</button>
+          </div>
+          <div class="chat-time">Previous 7 Days</div>
+          <div class="chat-row">
+            <span class="chat-title">Marathon training schedule</span>
+            <button class="chat-dots">⋯</button>
+          </div>
+          <div class="chat-row">
+            <span class="chat-title">Best espresso grind for V60</span>
+            <button class="chat-dots">⋯</button>
+          </div>
+          <div class="chat-row">
+            <span class="chat-title">SQL window functions cheat</span>
+            <button class="chat-dots">⋯</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <button class="sf-btn" id="routinesBtn" onclick="openRoutines()">
+        <span class="dot"></span>
+        Routines
+      </button>
+      <button class="sf-btn" id="ghostBtn" onclick="toggleGhost()">
+        <span class="dot"></span>
+        Ghost
+      </button>
+    </div>
+  </aside>
+
+  <!-- ============================================================
+       MAIN
+       ============================================================ -->
+  <main class="main">
+    <header class="head">
+      <div class="head-l">
+        <button class="menu-btn" onclick="toggleSidebar()" aria-label="Menu">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="crumbs" id="crumbs">
+          <span class="crumb-badge" id="modeBadge">Chat</span>
+          <span class="crumb-sep">/</span>
+          <span class="crumb-current" id="crumbTitle">How transformers work, plainly</span>
+        </div>
+      </div>
+      <div class="head-r">
+        <button class="icon-btn hide-mobile" title="Toggle theme" onclick="toggleTheme()" aria-label="Theme">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <button class="icon-btn" title="Open palette" onclick="openPalette()" aria-label="Palette">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        </button>
+        <button class="icon-btn" title="Settings" onclick="openSettings()" aria-label="Settings">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Resources strip (workspace only) -->
+    <section class="resources" id="resources" hidden>
+      <div class="res-head">
+        <span class="res-label">Resources</span>
+        <span class="res-count">12 files · 8.4 MB</span>
+        <button class="res-add">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add file
+        </button>
+      </div>
+      <div class="res-grid">
+        <button class="res-card" onclick="openFile('resume.pdf')">
+          <span class="res-icon pdf">PDF</span>
+          <span class="res-body">
+            <span class="res-name">2026_resume_v3.pdf</span>
+            <span class="res-meta">142 KB · today</span>
+          </span>
+          <span class="res-open">Open ↗</span>
+        </button>
+        <button class="res-card" onclick="openFile('cover.md')">
+          <span class="res-icon md">MD</span>
+          <span class="res-body">
+            <span class="res-name">cover_letter_draft.md</span>
+            <span class="res-meta">8 KB · 2h ago</span>
+          </span>
+          <span class="res-open">Open ↗</span>
+        </button>
+        <button class="res-card" onclick="openFile('targets.md')">
+          <span class="res-icon md">MD</span>
+          <span class="res-body">
+            <span class="res-name">target_companies.md</span>
+            <span class="res-meta">3 KB · yesterday</span>
+          </span>
+          <span class="res-open">Open ↗</span>
+        </button>
+        <button class="res-card" onclick="openFile('research.py')">
+          <span class="res-icon py">PY</span>
+          <span class="res-body">
+            <span class="res-name">scrape_jobs.py</span>
+            <span class="res-meta">12 KB · 3d ago</span>
+          </span>
+          <span class="res-open">Open ↗</span>
+        </button>
+        <button class="res-card" onclick="openFile('linkedin.png')">
+          <span class="res-icon img">IMG</span>
+          <span class="res-body">
+            <span class="res-name">linkedin_headshot.png</span>
+            <span class="res-meta">2.1 MB · 1w ago</span>
+          </span>
+          <span class="res-open">Open ↗</span>
+        </button>
+        <button class="res-card" onclick="openFile('notes.md')">
+          <span class="res-icon md">MD</span>
+          <span class="res-body">
+            <span class="res-name">interview_notes.md</span>
+            <span class="res-meta">21 KB · 4d ago</span>
+          </span>
+          <span class="res-open">Open ↗</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Drop overlay -->
+    <div class="drop-overlay" id="dropOverlay">
+      <div class="drop-content">
+        <svg class="icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <h3>Drop to attach</h3>
+        <p>Files will be added to this conversation</p>
+      </div>
+    </div>
+
+    <!-- Scroll area: landing or chat -->
+    <div class="scroll" id="scroll">
+
+      <!-- LANDING -->
+      <section class="landing" id="landing">
+        <div class="landing-inner">
+          <div class="landing-eyebrow">
+            <span class="pulse"></span>
+            <span>EDDIE · LOCAL · ONLINE</span>
+          </div>
+          <h1>
+            <span class="greet">hey,</span><br>
+            I'm <span class="name">Ed</span>.
+          </h1>
+          <p class="sub">Your local intelligence, no cloud. Ask anything — or pick a starting point below.</p>
+
+          <div class="landing-chips">
+            <button class="landing-chip" onclick="setScene('chat-active')">
+              <span class="chip-icon">✶</span>
+              <div class="chip-title">Explain how transformers work in simple terms</div>
+              <div class="chip-cat">LEARN</div>
+              <span class="chip-arrow">→</span>
+            </button>
+            <button class="landing-chip">
+              <span class="chip-icon">⌘</span>
+              <div class="chip-title">Help me write a Python script that watches a folder</div>
+              <div class="chip-cat">CODE</div>
+              <span class="chip-arrow">→</span>
+            </button>
+            <button class="landing-chip">
+              <span class="chip-icon">◐</span>
+              <div class="chip-title">Summarize my schedule for today</div>
+              <div class="chip-cat">PLAN</div>
+              <span class="chip-arrow">→</span>
+            </button>
+            <button class="landing-chip">
+              <span class="chip-icon">✎</span>
+              <div class="chip-title">Rewrite this paragraph to sound less corporate</div>
+              <div class="chip-cat">WRITE</div>
+              <span class="chip-arrow">→</span>
+            </button>
+          </div>
+
+          <div class="recent-row">
+            <span class="recent-label">Or continue:</span>
+            <a class="recent-link" href="#">venv vs poetry</a>
+            <a class="recent-link" href="#">Christmas gift ideas</a>
+            <a class="recent-link" href="#">Marathon training</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- ACTIVE CHAT -->
+      <section class="chat-area" id="chatArea" hidden>
+
+        <!-- User message 1 -->
+        <div class="msg-block">
+          <div class="msg-meta right">
+            <span>2:14 PM</span>
+            <span class="sender">You</span>
+          </div>
+          <div class="user-msg">
+            <div class="msg-actions">
+              <button title="Edit">✎</button>
+              <button title="Copy">⎘</button>
+              <button title="Regenerate">↻</button>
+            </div>
+            Explain how transformers work in simple terms. I have a CS background but never studied ML.
+          </div>
+        </div>
+
+        <!-- Bot reply 1 -->
+        <div class="msg-block">
+          <div class="msg-meta">
+            <span class="sender ed">Ed</span>
+            <span>·</span>
+            <span>2:14 PM</span>
+            <span>·</span>
+            <span>2.1s · 387 tok</span>
+          </div>
+
+          <div class="blob-bar">
+            <span class="blob-pill"><span class="blob-icon">✓</span> Searched 6 sources</span>
+            <span class="blob-pill"><span class="blob-icon">✓</span> Read 3 references</span>
+          </div>
+
+          <div class="bot-msg">
+            <p>Think of a transformer as a <strong>conversation between every word and every other word</strong>, repeated in layers.</p>
+
+            <h2>The core trick: attention</h2>
+            <p>For each word, the model asks: <em>"of all the other words around me, which ones should I pay attention to right now?"</em> It then builds a weighted mix of those words and uses that as its new understanding of the current word.</p>
+
+            <p>Concretely, every token produces three vectors — <code>Query</code>, <code>Key</code>, and <code>Value</code>:</p>
+            <ul>
+              <li><strong>Query</strong> — what am I looking for?</li>
+              <li><strong>Key</strong> — what do I offer?</li>
+              <li><strong>Value</strong> — what's my actual content?</li>
+            </ul>
+
+            <p>You compute <code>softmax(Q·Kᵀ / √d)·V</code> — basically a similarity-weighted average. Here's it in PyTorch:</p>
+
+            <div class="code-card">
+              <div class="code-card-head">
+                <div class="code-card-dots"><span></span><span></span><span></span></div>
+                <span class="code-card-name">scaled_dot_product.py</span>
+                <span class="code-card-lang">PYTHON</span>
+                <button class="code-card-open">Open ↗</button>
+              </div>
+<pre><span class="kw">import</span> torch
+<span class="kw">import</span> torch.nn.functional <span class="kw">as</span> F
+
+<span class="kw">def</span> <span class="fn">attention</span>(Q, K, V):
+    <span class="cm"># Q, K, V: (batch, seq, d_model)</span>
+    d_k = Q.size(-<span class="num">1</span>)
+    scores = Q @ K.transpose(-<span class="num">2</span>, -<span class="num">1</span>) / (d_k ** <span class="num">0.5</span>)
+    weights = F.softmax(scores, dim=-<span class="num">1</span>)
+    <span class="kw">return</span> weights @ V</pre>
+            </div>
+
+            <p>Stack 6–96 of these on top of each other, sprinkle in layer norms and an MLP per layer, and you have GPT.</p>
+          </div>
+
+          <div class="bot-actions">
+            <button>⎘ Copy</button>
+            <button>↻ Regenerate</button>
+            <button>♪ Read aloud</button>
+            <button>★ Pin</button>
+          </div>
+        </div>
+
+        <!-- Threaded followup inline -->
+        <div class="thread-line">
+          <span class="thread-icon">↳</span>
+          <span>Follow-up · <span class="thread-q">"What about positional encoding?"</span></span>
+        </div>
+
+        <!-- Bot reply 2 (short) -->
+        <div class="msg-block">
+          <div class="msg-meta">
+            <span class="sender ed">Ed</span>
+            <span>·</span>
+            <span>2:16 PM</span>
+          </div>
+          <div class="bot-msg">
+            <p>Great catch — attention itself is order-blind. <strong>Positional encoding</strong> patches that by adding a unique signal to each token based on its position in the sequence. Two common flavors:</p>
+            <ul>
+              <li><strong>Sinusoidal</strong> (original): fixed sine/cosine waves at different frequencies — elegant, generalizes to longer sequences.</li>
+              <li><strong>Learned / RoPE</strong>: position vectors the model learns (or rotation-based, as in LLaMA) — usually performs better in practice.</li>
+            </ul>
+            <p>The position info gets <em>added</em> to the token embeddings before they ever see attention.</p>
+          </div>
+        </div>
+
+        <div style="height: 80px;"></div>
+      </section>
+    </div>
+
+    <!-- Context bar (above dock) -->
+    <div class="ctx-bar" id="ctxBar" onclick="toggleCtxPanel()">
+      <span class="ctx-pct">23%</span>
+      <div class="ctx-track">
+        <div class="ctx-seg system"   style="width: 6%"></div>
+        <div class="ctx-seg history"  style="width: 9%"></div>
+        <div class="ctx-seg files"    style="width: 4%"></div>
+        <div class="ctx-seg rag"      style="width: 3%"></div>
+        <div class="ctx-seg user_turn" style="width: 1%"></div>
+      </div>
+      <span class="ctx-tokens">948 / 4096</span>
+    </div>
+
+    <!-- Expanded context panel -->
+    <div class="ctx-panel" id="ctxPanel">
+      <div class="ctx-panel-grid">
+        <div class="ctx-stat">
+          <div class="label"><span class="swatch" style="background: var(--sky)"></span>System</div>
+          <div class="val">246 <span class="of">tok</span></div>
+        </div>
+        <div class="ctx-stat">
+          <div class="label"><span class="swatch" style="background: var(--lime)"></span>History</div>
+          <div class="val">368 <span class="of">tok</span></div>
+        </div>
+        <div class="ctx-stat">
+          <div class="label"><span class="swatch" style="background: var(--peach)"></span>Files</div>
+          <div class="val">164 <span class="of">tok</span></div>
+        </div>
+        <div class="ctx-stat">
+          <div class="label"><span class="swatch" style="background: var(--violet)"></span>Search</div>
+          <div class="val">130 <span class="of">tok</span></div>
+        </div>
+        <div class="ctx-stat">
+          <div class="label"><span class="swatch" style="background: var(--warn)"></span>Message</div>
+          <div class="val">40 <span class="of">tok</span></div>
+        </div>
+      </div>
+      <div class="ctx-actions">
+        <button class="ctx-action">⚡ Compact</button>
+        <button class="ctx-action danger">⌫ Forget</button>
+        <button class="ctx-action">↑ Expand 10k</button>
+      </div>
+    </div>
+
+    <!-- Input dock -->
+    <div class="dock-wrap">
+      <div class="attached-row" id="attachedRow">
+        <span class="file-chip">
+          <span class="file-icon">MD</span>
+          notes.md
+          <button class="file-x">×</button>
+        </span>
+      </div>
+
+      <div class="dock">
+        <!-- Stickman (kept exactly as in original) -->
+        <div class="stickman" aria-hidden="true">
+          <svg viewBox="0 0 60 62" xmlns="http://www.w3.org/2000/svg">
+            <g>
+              <circle cx="26" cy="10" r="10" fill="currentColor" opacity="0.85"/>
+              <line x1="26" y1="20" x2="24" y2="34" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+              <line x1="25" y1="25" x2="14" y2="32" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              <line x1="25" y1="25" x2="34" y2="34" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              <line x1="24" y1="34" x2="34" y2="38" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              <line x1="34" y1="38" x2="33" y2="50" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              <line x1="24" y1="34" x2="30" y2="40" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              <line x1="30" y1="40" x2="28" y2="52" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+            </g>
+          </svg>
+        </div>
+
+        <textarea id="dockInput" placeholder="Message Ed…  (drag a file in, or paste a link)" rows="1"></textarea>
+
+        <div class="dock-actions">
+          <button class="dock-btn" title="Attach">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          </button>
+          <button class="dock-btn" title="Voice">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          </button>
+          <button class="dock-btn" title="URL">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          </button>
+
+          <div class="think-toggle">
+            <button class="active"><span class="ic">·</span> Quick</button>
+            <button><span class="ic">◑</span> Think</button>
+          </div>
+
+          <button class="send-btn" title="Send">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="dock-hint">
+        <span class="kbd-chip"><span>⏎</span> send</span>
+        <span class="kbd-chip"><span>⇧⏎</span> new line</span>
+        <span class="kbd-chip"><span>⌘K</span> jump</span>
+        <span class="kbd-chip"><span>/</span> commands</span>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ============================================================
+     COMMAND PALETTE
+     ============================================================ -->
+<div class="palette-overlay" id="paletteOverlay" onclick="if(event.target===this) closePalette()">
+  <div class="palette">
+    <div class="palette-search">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-3);"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="text" placeholder="Type a command, search a chat, or paste a URL…" id="paletteInput">
+      <span class="esc">ESC</span>
+    </div>
+    <div class="palette-list">
+      <div class="pal-group">
+        <div class="pal-group-label">Actions</div>
+        <div class="pal-item sel">
+          <span class="pal-icon lime">+</span>
+          <span class="pal-title">New conversation</span>
+          <span class="pal-shortcut">⌘N</span>
+        </div>
+        <div class="pal-item">
+          <span class="pal-icon peach"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 22 8.5 12 15 2 8.5 12 2"/></svg></span>
+          <span class="pal-title">New workspace</span>
+          <span class="pal-shortcut">⌘⇧N</span>
+        </div>
+        <div class="pal-item">
+          <span class="pal-icon">⌥</span>
+          <span class="pal-title">Toggle Ghost Protocol</span>
+          <span class="pal-shortcut">⌘G</span>
+        </div>
+        <div class="pal-item">
+          <span class="pal-icon">↻</span>
+          <span class="pal-title">Open Routines</span>
+        </div>
+      </div>
+
+      <div class="pal-group">
+        <div class="pal-group-label">Recent chats</div>
+        <div class="pal-item">
+          <span class="pal-icon">◇</span>
+          <span class="pal-title">How transformers work, plainly</span>
+          <span class="pal-sub">2:14 PM</span>
+        </div>
+        <div class="pal-item">
+          <span class="pal-icon">◇</span>
+          <span class="pal-title">Latest news roundup</span>
+          <span class="pal-sub">11:48 AM</span>
+        </div>
+        <div class="pal-item">
+          <span class="pal-icon">◇</span>
+          <span class="pal-title">venv vs poetry</span>
+          <span class="pal-sub">9:12 AM</span>
+        </div>
+      </div>
+
+      <div class="pal-group">
+        <div class="pal-group-label">Workspaces</div>
+        <div class="pal-item">
+          <span class="pal-icon peach"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 22 8.5 12 15 2 8.5 12 2"/></svg></span>
+          <span class="pal-title">Q4 Planning</span>
+          <span class="pal-sub">3 files</span>
+        </div>
+        <div class="pal-item">
+          <span class="pal-icon peach"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 22 8.5 12 15 2 8.5 12 2"/></svg></span>
+          <span class="pal-title">Job search 2026</span>
+          <span class="pal-sub">12 files</span>
+        </div>
+      </div>
+    </div>
+    <div class="palette-foot">
+      <span><b>↑↓</b>navigate</span>
+      <span><b>⏎</b>select</span>
+      <span><b>⌘1-9</b>jump to chat</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     SETTINGS PANEL
+     ============================================================ -->
+<div class="settings-overlay" id="settingsOverlay" onclick="closeSettings()"></div>
+<aside class="settings-panel" id="settingsPanel">
+  <div class="s-head">
+    <h2>Settings</h2>
+    <button class="icon-btn close" onclick="closeSettings()" title="Close">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="s-tabs">
+    <button class="s-tab active">General</button>
+    <button class="s-tab">Memory</button>
+    <button class="s-tab">Voice</button>
+    <button class="s-tab">Advanced</button>
+  </div>
+  <div class="s-body">
+
+    <div class="s-section">
+      <h3 class="s-section-title">Web search</h3>
+      <div class="s-row">
+        <div class="s-row-head">
+          <span class="s-row-label">Target sources per query</span>
+          <span class="s-range" style="width: 140px">
+            <div class="track">
+              <div class="fill" style="width: 50%"></div>
+              <div class="thumb" style="left: 50%"></div>
+            </div>
+            <span class="val">6</span>
+          </span>
+        </div>
+        <div class="s-row-hint">Higher numbers improve quality but slow responses.</div>
+      </div>
+    </div>
+
+    <div class="s-section">
+      <h3 class="s-section-title">Personal memory</h3>
+      <div class="memory-list">
+        <div class="mem-item">I live in Berlin, work in Europe/Berlin TZ.<button class="mem-x">×</button></div>
+        <div class="mem-item">Prefer concise answers, code in Python.<button class="mem-x">×</button></div>
+        <div class="mem-item">Vegetarian, no nuts.<button class="mem-x">×</button></div>
+      </div>
+      <div class="mem-add-row">
+        <input type="text" placeholder="Add a memory…">
+        <button class="mem-add-btn">+</button>
+      </div>
+    </div>
+
+    <div class="s-section">
+      <h3 class="s-section-title">Voice</h3>
+      <div class="s-row">
+        <div class="s-row-head">
+          <span class="s-row-label">Auto-speak responses</span>
+          <div class="s-toggle"><div class="thumb"></div></div>
+        </div>
+        <div class="s-row-hint">Reads each response aloud as it finishes (≤300 chars).</div>
+      </div>
+      <div class="s-row">
+        <div class="s-row-head">
+          <span class="s-row-label">Continuous listening (hands-free)</span>
+          <div class="s-toggle on"><div class="thumb"></div></div>
+        </div>
+        <div class="s-row-hint">Wakes on "Hey Ed", listens until silence.</div>
+      </div>
+    </div>
+
+    <div class="s-section">
+      <h3 class="s-section-title">Appearance</h3>
+      <div class="s-row">
+        <div class="s-row-head">
+          <span class="s-row-label">Density</span>
+          <div class="rt-segment" style="width: 180px;">
+            <button class="active">Cozy</button>
+            <button>Compact</button>
+          </div>
+        </div>
+      </div>
+      <div class="s-row">
+        <div class="s-row-head">
+          <span class="s-row-label">Reduced motion</span>
+          <div class="s-toggle"><div class="thumb"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="s-section">
+      <div class="s-danger">
+        <h3 class="s-danger-title">Danger zone</h3>
+        <p class="s-danger-hint">Permanently removes all chats, files, and workspace data. This cannot be undone.</p>
+        <button class="s-danger-btn">Delete everything</button>
+      </div>
+    </div>
+
+  </div>
+</aside>
+
+<!-- ============================================================
+     ROUTINES PAGE
+     ============================================================ -->
+<section class="routines-page" id="routinesPage">
+  <div class="rt-head">
+    <h2>Routines</h2>
+    <span class="sub">— small things that should happen on their own</span>
+    <button class="icon-btn rt-close" onclick="closeRoutines()" title="Close">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  <div class="rt-body">
+    <!-- Form column -->
+    <div class="rt-form">
+      <h3>New routine</h3>
+      <div class="rt-field">
+        <label class="rt-label">Name</label>
+        <input class="rt-input" type="text" placeholder="e.g. Morning news, Drink water" value="Morning news brief">
+      </div>
+      <div class="rt-field">
+        <label class="rt-label">Frequency</label>
+        <div class="rt-segment">
+          <button class="active">Recurring</button>
+          <button>Once</button>
+        </div>
+      </div>
+      <div class="rt-field">
+        <label class="rt-label">Repeat</label>
+        <div class="rt-segment">
+          <button class="active">Daily</button>
+          <button>Weekly</button>
+          <button>Monthly</button>
+        </div>
+      </div>
+      <div class="rt-field">
+        <label class="rt-label">Times</label>
+        <div class="rt-time-row">
+          <input class="rt-input" type="time" value="07:30">
+          <input class="rt-input" type="time" value="18:00">
+        </div>
+      </div>
+      <div class="rt-field">
+        <label class="rt-label">Prompt</label>
+        <textarea class="rt-input tarea" placeholder="What should Ed do?">Search latest tech news and summarize the top 5 stories in 2 sentences each.</textarea>
+      </div>
+      <button class="rt-save">Save routine</button>
+    </div>
+
+    <!-- List column -->
+    <div class="rt-list">
+      <div class="rt-list-head">
+        <span>Active routines</span>
+        <span class="count">5</span>
+        <div class="filter">
+          <button class="active">All</button>
+          <button>Daily</button>
+          <button>Weekly</button>
+          <button>Paused</button>
+        </div>
+      </div>
+
+      <div class="rt-cat">
+        <h4 class="rt-cat-title">Daily</h4>
+        <div class="rt-card">
+          <div class="accent"></div>
+          <div class="time">07:30<span class="ampm">AM</span></div>
+          <div class="body">
+            <div class="name">Morning news brief</div>
+            <div class="prompt">Search latest tech news and summarize the top 5 stories in 2 sentences each.</div>
+            <div class="meta">Daily · 07:30 & 18:00 · Next in 6h 12m</div>
+          </div>
+          <div class="toggle-icon"></div>
+        </div>
+        <div class="rt-card">
+          <div class="accent"></div>
+          <div class="time">10:00<span class="ampm">AM</span></div>
+          <div class="body">
+            <div class="name">Hydration reminder</div>
+            <div class="prompt">Send a gentle nudge: "Drink some water 💧"</div>
+            <div class="meta">Daily · Every 2h · 8AM–10PM</div>
+          </div>
+          <div class="toggle-icon"></div>
+        </div>
+      </div>
+
+      <div class="rt-cat">
+        <h4 class="rt-cat-title">Weekly</h4>
+        <div class="rt-card weekly">
+          <div class="accent"></div>
+          <div class="time">09:00<span class="ampm">AM</span></div>
+          <div class="body">
+            <div class="name">Weekly review</div>
+            <div class="prompt">Summarize all my conversations from this week and highlight open threads.</div>
+            <div class="meta">Weekly · Mondays</div>
+          </div>
+          <div class="toggle-icon"></div>
+        </div>
+        <div class="rt-card weekly off">
+          <div class="accent"></div>
+          <div class="time">06:00<span class="ampm">PM</span></div>
+          <div class="body">
+            <div class="name">Grocery list draft</div>
+            <div class="prompt">Build a shopping list from this week's recipes in Recipe Collection.</div>
+            <div class="meta">Weekly · Fridays · Paused</div>
+          </div>
+          <div class="toggle-icon"></div>
+        </div>
+      </div>
+
+      <div class="rt-cat">
+        <h4 class="rt-cat-title">Monthly & once</h4>
+        <div class="rt-card monthly">
+          <div class="accent"></div>
+          <div class="time">12:00<span class="ampm">PM</span></div>
+          <div class="body">
+            <div class="name">Subscription audit</div>
+            <div class="prompt">List subscriptions I've mentioned this month, estimate total, suggest cuts.</div>
+            <div class="meta">Monthly · 1st of month</div>
+          </div>
+          <div class="toggle-icon"></div>
+        </div>
+        <div class="rt-card once">
+          <div class="accent"></div>
+          <div class="time">03:00<span class="ampm">PM</span></div>
+          <div class="body">
+            <div class="name">Flight check — Lisbon trip</div>
+            <div class="prompt">Check status of flight LH 1234 and email me if anything changed.</div>
+            <div class="meta">Once · Nov 12, 2026</div>
+          </div>
+          <div class="toggle-icon"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     FONT THEME PICKER
+     ============================================================ -->
+<div class="font-picker" id="fontPicker">
+  <button class="fp-toggle" id="fpToggle" title="Change typography">
+    <span class="fp-aa">Aa</span>
+    <span class="fp-current" id="fpCurrent">Modern</span>
+    <span class="fp-chev">▾</span>
+  </button>
+  <div class="fp-menu" id="fpMenu" hidden>
+    <div class="fp-menu-title">Typography</div>
+    <button class="fp-opt" data-font="modern">
+      <span class="fp-opt-name" style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; letter-spacing: -0.04em;">Modern</span>
+      <span class="fp-opt-sample" style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; letter-spacing: -0.04em;">Ed</span>
+      <span class="fp-opt-meta">Space Grotesk · Geist</span>
+    </button>
+    <button class="fp-opt" data-font="editorial">
+      <span class="fp-opt-name" style="font-family: 'Instrument Serif', serif; font-style: italic;">Editorial</span>
+      <span class="fp-opt-sample" style="font-family: 'Instrument Serif', serif; font-style: italic; font-size: 26px;">Ed</span>
+      <span class="fp-opt-meta">Instrument Serif · Geist</span>
+    </button>
+    <button class="fp-opt" data-font="warm">
+      <span class="fp-opt-name" style="font-family: 'Newsreader', serif; font-style: italic; font-weight: 500;">Warm</span>
+      <span class="fp-opt-sample" style="font-family: 'Newsreader', serif; font-style: italic; font-weight: 500; font-size: 24px;">Ed</span>
+      <span class="fp-opt-meta">Newsreader · IBM Plex Sans</span>
+    </button>
+    <button class="fp-opt" data-font="mono">
+      <span class="fp-opt-name" style="font-family: 'JetBrains Mono', monospace; font-style: italic; font-weight: 600;">Mono</span>
+      <span class="fp-opt-sample" style="font-family: 'JetBrains Mono', monospace; font-style: italic; font-weight: 600; font-size: 20px;">Ed</span>
+      <span class="fp-opt-meta">JetBrains Mono · Geist</span>
+    </button>
+    <button class="fp-opt" data-font="clean">
+      <span class="fp-opt-name" style="font-family: 'Manrope', sans-serif; font-weight: 700; letter-spacing: -0.045em;">Clean</span>
+      <span class="fp-opt-sample" style="font-family: 'Manrope', sans-serif; font-weight: 700; letter-spacing: -0.045em; font-size: 24px;">Ed</span>
+      <span class="fp-opt-meta">Manrope · Manrope</span>
+    </button>
+  </div>
+</div>
+
+<!-- ============================================================
+     SCENE SWITCHER (preview chrome)
+     ============================================================ -->
+<nav class="switcher" id="switcher">
+  <button data-scene="landing" class="active">Landing</button>
+  <button data-scene="chat-active">Active chat</button>
+  <button data-scene="workspace">Workspace</button>
+  <div class="div"></div>
+  <button data-scene="palette">⌘K Palette</button>
+  <button data-scene="settings">Settings</button>
+  <button data-scene="routines">Routines</button>
+  <div class="div"></div>
+  <button data-scene="ghost">Ghost</button>
+  <button data-scene="mobile">Mobile</button>
+</nav>
+
+<script>
+// ============================================================
+//  Scene switcher — visual states only. No server calls.
+// ============================================================
+
+const $ = (id) => document.getElementById(id);
+const body = document.body;
+
+function setScene(scene) {
+  // reset transient overlays
+  closePalette(); closeSettings(); closeRoutines();
+  body.classList.remove('is-mobile');
+  if (body.classList.contains('ghost-active') && scene !== 'ghost') {
+    // leave ghost mode unless re-selected
+    body.classList.remove('ghost-active');
+  }
+
+  // show landing or chat
+  const isChat = scene === 'chat-active' || scene === 'workspace' || scene === 'ghost';
+  $('landing').hidden = isChat;
+  $('chatArea').hidden = !isChat;
+
+  // resources strip only in workspace
+  $('resources').hidden = scene !== 'workspace';
+
+  // header crumb update
+  const badge = $('modeBadge');
+  const title = $('crumbTitle');
+  if (scene === 'workspace') {
+    badge.textContent = 'Workspace';
+    badge.className = 'crumb-badge workspace';
+    title.textContent = 'Job search 2026';
+    activateWorkspace();
+  } else if (scene === 'ghost') {
+    body.classList.add('ghost-active');
+    badge.textContent = 'Ghost';
+    badge.className = 'crumb-badge ghost';
+    title.textContent = 'Private — nothing saved';
+    activateChat();
+  } else if (scene === 'mobile') {
+    body.classList.add('is-mobile');
+    badge.textContent = 'Chat';
+    badge.className = 'crumb-badge';
+    title.textContent = 'How transformers work, plainly';
+    $('landing').hidden = false;
+    $('chatArea').hidden = true;
+  } else if (scene === 'palette') {
+    badge.textContent = 'Chat';
+    badge.className = 'crumb-badge';
+    title.textContent = 'How transformers work, plainly';
+    openPalette();
+  } else if (scene === 'settings') {
+    badge.textContent = 'Chat';
+    badge.className = 'crumb-badge';
+    title.textContent = 'How transformers work, plainly';
+    openSettings();
+  } else if (scene === 'routines') {
+    badge.textContent = 'Chat';
+    badge.className = 'crumb-badge';
+    title.textContent = 'How transformers work, plainly';
+    openRoutines();
+  } else if (scene === 'chat-active') {
+    badge.textContent = 'Chat';
+    badge.className = 'crumb-badge';
+    title.textContent = 'How transformers work, plainly';
+    activateChat();
+  } else {
+    // landing
+    badge.textContent = 'Chat';
+    badge.className = 'crumb-badge';
+    title.textContent = 'New conversation';
+  }
+
+  // sidebar active state
+  document.querySelectorAll('.chat-row').forEach(r => r.classList.remove('active'));
+  document.querySelectorAll('.ws-card').forEach(r => r.classList.remove('active'));
+  if (scene === 'workspace') {
+    $('ws-job')?.classList.add('active');
+  } else if (scene === 'chat-active' || scene === 'palette' || scene === 'settings' || scene === 'routines' || scene === 'ghost') {
+    $('chat-transformer')?.classList.add('active');
+  }
+
+  // switcher state
+  document.querySelectorAll('#switcher button[data-scene]').forEach(b => {
+    b.classList.toggle('active', b.dataset.scene === scene);
+  });
+}
+
+function activateChat() {
+  $('attachedRow').style.display = '';
+}
+function activateWorkspace() {
+  $('attachedRow').style.display = '';
+}
+
+// switcher click handler
+document.querySelectorAll('#switcher button[data-scene]').forEach(btn => {
+  btn.addEventListener('click', () => setScene(btn.dataset.scene));
+});
+
+// ── overlays
+function openPalette() { $('paletteOverlay').classList.add('open'); setTimeout(() => $('paletteInput').focus(), 50); }
+function closePalette() { $('paletteOverlay').classList.remove('open'); }
+function openSettings() { $('settingsPanel').classList.add('open'); $('settingsOverlay').classList.add('open'); }
+function closeSettings() { $('settingsPanel').classList.remove('open'); $('settingsOverlay').classList.remove('open'); }
+function openRoutines() { $('routinesPage').classList.add('open'); }
+function closeRoutines() { $('routinesPage').classList.remove('open'); }
+
+function toggleCtxPanel() { $('ctxPanel').classList.toggle('open'); }
+function toggleTheme() { body.classList.toggle('theme-light'); body.classList.toggle('theme-dark'); }
+function toggleSidebar() { $('sidebar').classList.toggle('open'); }
+function toggleGhost() {
+  body.classList.toggle('ghost-active');
+  $('ghostBtn').classList.toggle('ghost-on', body.classList.contains('ghost-active'));
+}
+
+// Resources clickable → open code canvas demo
+function openFile(name) {
+  // visual ack only
+  const card = event.currentTarget;
+  card.style.borderColor = 'var(--peach)';
+  setTimeout(() => card.style.borderColor = '', 400);
+  alert(`Opens "${name}" in the code canvas. (Hooked to existing /files endpoint in the real app — no server changes here.)`);
+}
+
+// Keyboard: ⌘K / Ctrl+K
+window.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    if ($('paletteOverlay').classList.contains('open')) closePalette();
+    else openPalette();
+  }
+  if (e.key === 'Escape') {
+    closePalette(); closeSettings(); closeRoutines();
+    $('ctxPanel').classList.remove('open');
+  }
+});
+
+// Drop overlay demo (visual)
+const scrollEl = $('scroll');
+scrollEl.addEventListener('dragover', (e) => {
+  if (e.dataTransfer && Array.from(e.dataTransfer.types).includes('Files')) {
+    e.preventDefault();
+    $('dropOverlay').classList.add('show');
+  }
+});
+scrollEl.addEventListener('dragleave', (e) => {
+  if (e.target === scrollEl) $('dropOverlay').classList.remove('show');
+});
+scrollEl.addEventListener('drop', (e) => {
+  e.preventDefault();
+  $('dropOverlay').classList.remove('show');
+});
+
+// Autosize textarea
+const dockInput = $('dockInput');
+if (dockInput) {
+  dockInput.addEventListener('input', () => {
+    dockInput.style.height = 'auto';
+    dockInput.style.height = Math.min(dockInput.scrollHeight, 200) + 'px';
+  });
+}
+
+// init
+setScene('landing');
+</script>
+</body>
+</html>

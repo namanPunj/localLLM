@@ -1,0 +1,144 @@
+/* Page background (Dark Mode) */
+body {
+  background-color: #121315; /* Dark background from the image */
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+/* -------------------
+   CHAT BAR STYLES
+   ------------------- */
+.chat-bar {
+  display: flex;
+  align-items: center;
+  background-color: #202226;
+  border-radius: 40px;
+  padding: 8px 12px 8px 20px;
+  width: 700px;
+  border: 1px solid #33363d;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.chat-input {
+  flex-grow: 1;
+  background: transparent;
+  border: none;
+  color: #e5e7eb;
+  font-size: 16px;
+  padding: 0 15px;
+  outline: none;
+}
+.chat-input::placeholder { color: #6b7280; }
+
+.chat-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.icon-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+}
+.icon-btn:hover { background-color: rgba(255, 255, 255, 0.05); }
+
+/* The yellow ring around the bulb */
+.bulb-btn {
+  border: 1px solid #ca8a04;
+  background-color: rgba(202, 138, 4, 0.1);
+}
+
+/* -------------------
+   SEND BUTTON & STICKMAN WRAPPER
+   ------------------- */
+.send-wrapper {
+  position: relative; /* Crucial for positioning the stickman */
+  margin-left: 8px;
+}
+
+.send-btn {
+  background-color: #3b82f6; /* Blue button */
+  border: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  transition: transform 0.1s;
+}
+.send-btn:active { transform: scale(0.95); }
+
+/* Position the stickman right on top of the button */
+#sitting-stickman-container {
+  position: absolute;
+  bottom: -10px;      /* Push it up so it sits on top */
+  left: 50px;
+  transform: translateX(-50%);
+  pointer-events: none; /* Let clicks pass through to the button */
+  width: 70px;      /* Scaled down to fit the button */
+  z-index: 10;
+}
+/* -------------------
+   STUDIOUS SPECTACLES
+   ------------------- */
+
+/* The components make up the classic, thick frames */
+.spec-lens, .spec-bridge, .spec-arm {
+  fill: none;
+  stroke: #ffffff; /* Matches the foreground limbs */
+  stroke-linecap: round;
+  transition: opacity 0.3s ease; 
+}
+
+/* Specific styling for the thick, rounded studious look */
+.spec-lens {
+  stroke-width: 6; /* Thick rims */
+}
+
+/* The bridge connecting the lenses */
+.spec-bridge {
+  stroke-width: 4;
+}
+
+/* Simple arms stretching to the head */
+.spec-arm {
+  stroke-width: 3;
+}
+
+/* -------------------
+   STICKMAN ANIMATIONS (White theme)
+   ------------------- */
+.stick-figure-svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.limb, .torso { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.front-layer { stroke: #ffffff; stroke-width: 10; } /* Changed to white for dark mode */
+.back-layer  { stroke: #9ca3af; stroke-width: 8; }  /* Gray for depth */
+.head { fill: #ffffff; }
+
+.stickman-group { animation: breathe 3.5s infinite ease-in-out; }
+.head { transform-origin: 62px 40px; animation: head-bob 3.5s infinite ease-in-out; }
+.front-calf { transform-origin: 105px 85px; animation: swing-leg 2s infinite alternate ease-in-out; }
+.back-calf { transform-origin: 95px 80px; animation: swing-leg-back 2.3s infinite alternate ease-in-out; }
+
+@keyframes breathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+@keyframes head-bob { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(4deg); } }
+@keyframes swing-leg { 0% { transform: rotate(-5deg); } 100% { transform: rotate(15deg); } }
+@keyframes swing-leg-back { 0% { transform: rotate(0deg); } 100% { transform: rotate(20deg); } }

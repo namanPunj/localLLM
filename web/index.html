@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#101013">
+  <title>Ed v2</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+  <div id="transitionOverlay" aria-hidden="true"></div>
+  <div id="sidebarBackdrop" class="sidebar-backdrop" aria-hidden="true"></div>
+
+  <aside id="sidebar" class="sidebar" aria-label="Chat history">
+    <button id="newChatBtn" class="new-chat-btn" aria-label="Start new chat">
+      <span>+</span> New Chat
+    </button>
+    <div class="history-container" role="list">
+      <!-- Workspaces section (collapsible) -->
+      <div class="sidebar-section" id="workspaceSection">
+        <div class="section-header-row">
+          <button class="sidebar-section-toggle" id="workspaceSectionToggle" aria-expanded="true">
+            <span class="section-arrow">▾</span>
+            <span class="section-icon"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 5.5l7-4 7 4-7 4-7-4z"/><path d="M1 10l7 4 7-4"/></svg></span>
+            <span class="section-label">Workspaces</span>
+          </button>
+          <span class="section-count" id="workspaceCount">0</span>
+          <div class="section-dots-menu">
+            <button class="section-dots-btn" type="button" aria-label="Workspace options" aria-haspopup="true">⋯</button>
+            <div class="section-dots-dropdown" hidden>
+              <button class="section-dots-opt" id="newWorkspaceBtn" type="button">
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H2a1 1 0 00-1 1v8a1 1 0 001 1h2.5L6 15l1.5-3H14a1 1 0 001-1V3a1 1 0 00-1-1z"/></svg>
+                New workspace
+              </button>
+              <button class="section-dots-opt" id="addWorkspaceFolderBtn" type="button">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="currentColor" aria-hidden="true"><path d="M1 2.5A1.5 1.5 0 012.5 1h2.086a1 1 0 01.707.293l.414.414A1 1 0 006.414 2H8.5A1.5 1.5 0 0110 3.5v5A1.5 1.5 0 018.5 10h-6A1.5 1.5 0 011 8.5v-6z"/></svg>
+                New folder
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="sidebar-section-body" id="workspaceList"></div>
+      </div>
+      <!-- Chats section -->
+      <div class="sidebar-section" id="chatSection">
+        <div class="section-header-row">
+          <button class="sidebar-section-toggle" id="chatSectionToggle" aria-expanded="true">
+            <span class="section-arrow">▾</span>
+            <span class="section-icon">💬</span>
+            <span class="section-label">Chats</span>
+          </button>
+          <span class="section-count" id="chatCount">0</span>
+          <div class="section-dots-menu">
+            <button class="section-dots-btn" type="button" aria-label="Chat options" aria-haspopup="true">⋯</button>
+            <div class="section-dots-dropdown" hidden>
+              <button class="section-dots-opt" id="newChatSectionBtn" type="button">
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H2a1 1 0 00-1 1v8a1 1 0 001 1h2.5L6 15l1.5-3H14a1 1 0 001-1V3a1 1 0 00-1-1z"/></svg>
+                New chat
+              </button>
+              <button class="section-dots-opt" id="addChatFolderBtn" type="button">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="currentColor" aria-hidden="true"><path d="M1 2.5A1.5 1.5 0 012.5 1h2.086a1 1 0 01.707.293l.414.414A1 1 0 006.414 2H8.5A1.5 1.5 0 0110 3.5v5A1.5 1.5 0 018.5 10h-6A1.5 1.5 0 011 8.5v-6z"/></svg>
+                New folder
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="sidebar-section-body" id="chatList"></div>
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <button id="sidebarRoutinesBtn" class="routines-btn" aria-label="Open Routines"><span class="sf-dot"></span> ROUTINES</button>
+      <button id="sidebarGhostBtn" class="ghost-btn" aria-label="Toggle Ghost Protocol"><span class="sf-dot"></span> GHOST</button>
+    </div>
+  </aside>
+
+  <main class="main-wrapper">
+    <header>
+      <button id="menuToggle" class="menu-toggle" aria-label="Toggle sidebar">☰</button>
+      <h1>LOCAL LLM</h1>
+      <div class="header-actions">
+      <button id="ctxChart" class="ctx-chart" title="Context window usage" aria-label="Context usage" type="button">
+        <svg id="ctxRing" class="ctx-ring" viewBox="0 0 36 36" aria-hidden="true"></svg>
+        <span class="ctx-label" id="ctxLabel"></span>
+      </button>
+      <div id="ctxPanel" class="ctx-panel" hidden></div>
+      <button id="projectToggleBtn" class="project-btn" title="Toggle workspace mode" aria-label="Toggle workspace mode"><span class="proj-icon"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 5.5l7-4 7 4-7 4-7-4z"/><path d="M1 10l7 4 7-4"/></svg></span><span class="proj-label">WORKSPACE</span></button>
+      <button id="themeToggleBtn" class="theme-toggle" title="Toggle light/dark mode" aria-label="Toggle theme" type="button">
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <button id="settingsBtn" class="settings-btn" title="Settings" aria-label="Open settings">⚙</button>
+
+      <button id="dockGhostBtn" class="ghost-btn desktop-ghost-wrapper" aria-label="Toggle Ghost Protocol">👻 GHOST</button>
+      <button id="ghostExitBtn" class="ghost-exit-btn" aria-label="Exit Ghost Mode" hidden>👻</button>
+    </div>
+    </header>
+
+    <!-- Temp session banner — shown at top when chat is unsaved -->
+    <div id="saveTempBtn" class="save-temp-bar" hidden>
+      <div class="save-temp-inner">
+        <span class="save-temp-dot"></span>
+        <span class="save-temp-label">Temporary chat</span>
+        <span class="save-temp-hint">Not saved to history</span>
+        <button type="button" class="save-temp-action" onclick="saveCurrentSession()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Save
+        </button>
+      </div>
+    </div>
+
+    <!-- Resources drawer toggle button (visible in workspace mode) -->
+    <div id="resourcesBar" class="resources-bar" hidden>
+      <button id="resourcesToggleBtn" class="resources-toggle-btn" type="button">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+        <span id="resourcesCount">0 files</span>
+      </button>
+      <button id="projectAddFileBtn" class="project-add-btn" type="button" title="Add file to workspace">+ Add</button>
+      <input id="projectFileInput" type="file" hidden multiple>
+    </div>
+
+    <!-- Resources side drawer -->
+    <div id="resourcesDrawer" class="resources-drawer" hidden>
+      <div class="resources-drawer-header">
+        <span class="resources-drawer-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+          Resources
+        </span>
+        <button id="resourcesCloseBtn" class="resources-close-btn" type="button">✕</button>
+      </div>
+      <div id="projectFileList" class="resources-file-list"></div>
+      <div class="resources-drawer-footer">
+        <button id="resourcesAddBtn" class="resources-add-full-btn" type="button">+ Add File</button>
+      </div>
+    </div>
+    <div id="resourcesBackdrop" class="resources-backdrop" hidden></div>
+
+    <!-- Ghost cover (shown when ghost mode activates/deactivates) -->
+    <div id="ghostCover" class="ghost-cover" hidden>
+      <div class="ghost-cover-inner">
+        <div class="ghost-cover-icon">👻</div>
+        <div id="ghostCoverTitle" class="ghost-cover-title">GHOST PROTOCOL</div>
+        <div id="ghostCoverSub" class="ghost-cover-sub">This session will not be saved. It disappears after inactivity.</div>
+        <button id="ghostCoverDismiss" class="ghost-cover-dismiss">Start Chatting</button>
+      </div>
+    </div>
+
+    <!-- Landing page (shown on fresh/new sessions) -->
+    <div id="landingPage" class="landing-page">
+      <div class="landing-inner">
+        <div class="landing-eyebrow"><span class="pulse"></span><span>EDDIE · LOCAL · ONLINE</span></div>
+        <div class="landing-logo"><span class="greet">hey,</span><br>I'm <span class="name">Ed</span>.</div>
+        <p class="landing-sub">Your local intelligence, no cloud. Ask anything — or pick a starting point below.</p>
+        <div class="landing-chips">
+          <button class="landing-chip" data-q="Summarize my schedule for today"><span class="chip-icon">◐</span><div class="chip-title">Summarize my schedule for today</div><div class="chip-cat">PLAN</div><span class="chip-arrow">→</span></button>
+          <button class="landing-chip" data-q="Search latest geopolitical news and summarize the key developments"><span class="chip-icon">◎</span><div class="chip-title">Latest geopolitical news</div><div class="chip-cat">NEWS</div><span class="chip-arrow">→</span></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Workspace landing page (shown when a new workspace session starts) -->
+    <div id="workspaceLandingPage" class="landing-page" hidden>
+      <div class="landing-inner">
+        <div class="landing-logo workspace-logo"><svg width="40" height="40" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 5.5l7-4 7 4-7 4-7-4z"/><path d="M1 10l7 4 7-4"/></svg></div>
+        <p class="landing-sub">Add files above, then ask anything</p>
+        <div class="landing-chips">
+          <button class="landing-chip" data-q="Summarise all the files I've uploaded">📄 Summarise files</button>
+          <button class="landing-chip" data-q="What are the key insights across my documents?">🔍 Key insights</button>
+          <button class="landing-chip" data-q="Compare the uploaded documents and highlight differences">⚖ Compare docs</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="chatContainer" role="log" aria-live="polite"></div>
+
+
+
+  <!-- Model wake overlay — shown while Ollama reloads with new context size -->
+  <div id="modelWakeOverlay" class="model-wake-overlay" hidden aria-live="polite">
+    <div class="model-wake-spinner"></div>
+    <div class="model-wake-text">Loading model configuration…</div>
+    <div class="model-wake-sub" id="modelWakeSub">Please wait</div>
+  </div>
+
+    <div class="input-area">
+      <div class="followup-row" id="followupRow" hidden></div>
+      <div class="file-chip-row" id="fileChipRow"></div>
+      <div id="urlScrapeBar" class="url-scrape-bar" hidden>
+        <span class="url-scrape-icon">🌐</span>
+        <input id="urlInput" type="url" placeholder="https://…  paste a URL to scrape" autocomplete="off" aria-label="URL to scrape">
+        <button type="button" id="urlFetchBtn" class="url-fetch-btn">Fetch</button>
+        <button type="button" id="urlCancelBtn" class="url-cancel-btn" aria-label="Cancel">✕</button>
+      </div>
+      <form class="input-dock" id="chatForm">
+        <!-- Stickman — clean, minimal, sits on top-right of chat bar -->
+        <div id="stickman" class="stickman-wrap" aria-hidden="true" data-state="idle">
+          <svg class="stickman-svg" viewBox="0 0 60 62" xmlns="http://www.w3.org/2000/svg">
+
+            <!-- ── Think cloud — big, top-right of figure ── -->
+            <g class="sm-thought">
+              <circle cx="38" cy="2" r="2.5" fill="currentColor" opacity="0.45"/>
+              <circle cx="45" cy="-5" r="3.5" fill="currentColor" opacity="0.4"/>
+              <ellipse cx="57" cy="-14" rx="13" ry="8" fill="rgba(255,255,255,0.07)" stroke="currentColor" stroke-width="1.8"/>
+              <circle cx="52" cy="-14.5" r="1.6" fill="currentColor" opacity="0.55"/>
+              <circle cx="57" cy="-14.5" r="1.6" fill="currentColor" opacity="0.55"/>
+              <circle cx="62" cy="-14.5" r="1.6" fill="currentColor" opacity="0.55"/>
+            </g>
+
+            <!-- ── Speech bubble with pulsing dots — above head ── -->
+            <g class="sm-speech">
+              <rect x="11" y="-16" width="26" height="14" rx="5" fill="rgba(255,255,255,0.08)" stroke="currentColor" stroke-width="1.4"/>
+              <polygon points="22,-2 26,-2 20,3" fill="rgba(255,255,255,0.08)" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+              <line x1="22" y1="-2" x2="26" y2="-2" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
+              <circle cx="18" cy="-9" r="1.8" class="sm-dot sm-dot-1" fill="currentColor"/>
+              <circle cx="24" cy="-9" r="1.8" class="sm-dot sm-dot-2" fill="currentColor"/>
+              <circle cx="30" cy="-9" r="1.8" class="sm-dot sm-dot-3" fill="currentColor"/>
+            </g>
+
+            <!-- ── Pose: idle — clean sitting, round head, facing right ── -->
+            <g class="sm-pose sm-pose-idle">
+              <circle cx="26" cy="10" r="10" class="sm-head"/>
+              <!-- torso — slight lean back -->
+              <line x1="26" y1="20" x2="24" y2="34" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+              <!-- left arm behind -->
+              <line x1="25" y1="25" x2="14" y2="32" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              <!-- right arm on knee -->
+              <line x1="25" y1="25" x2="34" y2="34" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              <!-- right leg: thigh forward, shin hanging -->
+              <line x1="24" y1="34" x2="34" y2="38" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              <line x1="34" y1="38" x2="33" y2="50" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              <!-- left leg: swings -->
+              <g class="sm-idle-leg-left">
+                <line x1="24" y1="34" x2="30" y2="40" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+                <line x1="30" y1="40" x2="28" y2="52" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              </g>
+            </g>
+
+            <!-- ── Pose: alert — same sit, speech bubble appears ── -->
+            <g class="sm-pose sm-pose-alert">
+              <circle cx="26" cy="10" r="10" class="sm-head"/>
+              <line x1="26" y1="20" x2="24" y2="34" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+              <line x1="25" y1="25" x2="14" y2="32" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              <line x1="25" y1="25" x2="34" y2="34" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              <line x1="24" y1="34" x2="34" y2="38" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              <line x1="34" y1="38" x2="33" y2="50" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              <line x1="24" y1="34" x2="30" y2="40" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              <line x1="30" y1="40" x2="28" y2="52" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+            </g>
+
+            <!-- ── Pose: thinking — hand on chin ── -->
+            <g class="sm-pose sm-pose-thinking">
+              <circle cx="26" cy="10" r="10" class="sm-head"/>
+              <line x1="26" y1="20" x2="24" y2="34" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+              <!-- right arm: hand to chin -->
+              <line x1="25" y1="25" x2="34" y2="16" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              <!-- left arm on knee -->
+              <line x1="25" y1="25" x2="14" y2="32" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              <line x1="24" y1="34" x2="34" y2="38" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              <line x1="34" y1="38" x2="33" y2="50" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              <line x1="24" y1="34" x2="30" y2="40" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              <line x1="30" y1="40" x2="28" y2="52" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+            </g>
+
+            <!-- ── Pose: typing — laptop _/ shape on bar to his right ── -->
+            <g class="sm-pose sm-pose-typing">
+              <circle cx="20" cy="10" r="10" class="sm-head sm-typing-head"/>
+              <line x1="20" y1="20" x2="20" y2="34" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+              <!-- laptop _/ : flat base then screen angles up-right -->
+              <!-- _ base (keyboard) -->
+              <line x1="34" y1="48" x2="48" y2="48" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+              <!-- / screen (glowing, angled up from right end of base) -->
+              <line x1="48" y1="48" x2="54" y2="30" stroke="rgba(120,200,255,0.45)" stroke-width="6" stroke-linecap="round" class="sm-screen-glow"/>
+              <line x1="48" y1="48" x2="54" y2="30" stroke="rgba(140,215,255,0.8)" stroke-width="2.2" stroke-linecap="round" class="sm-laptop-screen"/>
+              <!-- screen content lines on the / -->
+              <line x1="50" y1="43" x2="52" y2="35" stroke="rgba(200,230,255,0.5)" stroke-width="1" class="sm-screen-line"/>
+              <line x1="50.5" y1="41" x2="52.5" y2="33" stroke="rgba(200,230,255,0.35)" stroke-width="1" class="sm-screen-line"/>
+              <!-- left arm to keyboard -->
+              <g class="sm-left-forearm">
+                <line x1="20" y1="26" x2="38" y2="48" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              </g>
+              <!-- right arm to keyboard -->
+              <g class="sm-right-forearm">
+                <line x1="20" y1="26" x2="44" y2="48" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              </g>
+              <!-- legs -->
+              <line x1="20" y1="34" x2="28" y2="38" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              <line x1="28" y1="38" x2="27" y2="50" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              <line x1="20" y1="34" x2="24" y2="40" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              <line x1="24" y1="40" x2="22" y2="52" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+            </g>
+
+            <!-- ── Top hat (ghost mode) — sits on head, hidden by default ── -->
+            <g class="sm-hat">
+              <!-- brim -->
+              <rect x="13" y="-2" width="26" height="3.5" rx="1.5" fill="#111"/>
+              <!-- crown -->
+              <rect x="18" y="-15" width="16" height="14" rx="1.5" fill="#111"/>
+              <!-- crown highlight band -->
+              <rect x="18" y="-4.5" width="16" height="2" rx="0.5" fill="#2a2a2a"/>
+            </g>
+
+            <!-- ── Glasses (think mode) — rendered last so they sit ON TOP of head ── -->
+            <g class="sm-glasses">
+              <rect x="16" y="7" width="9" height="7" rx="2" fill="rgba(0,0,0,0.15)" stroke="#111" stroke-width="2.2"/>
+              <rect x="27" y="7" width="9" height="7" rx="2" fill="rgba(0,0,0,0.15)" stroke="#111" stroke-width="2.2"/>
+              <line x1="25" y1="10" x2="27" y2="10" stroke="#111" stroke-width="2.2"/>
+              <line x1="16" y1="10" x2="13" y2="11" stroke="#222" stroke-width="1.8"/>
+              <line x1="36" y1="10" x2="39" y2="11" stroke="#222" stroke-width="1.8"/>
+            </g>
+
+          </svg>
+          <!-- Pulsing dots — shown above-right of stickman during thinking/typing -->
+          <div class="sm-activity-dots">
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+        <div class="attach-wrapper">
+          <button id="attachBtn" class="dock-btn" type="button" title="Attach" aria-label="Attach file or web page">📎</button>
+          <div id="attachMenu" class="attach-menu" hidden>
+            <button type="button" class="attach-opt" id="attachLocalBtn">📎 Local File</button>
+            <button type="button" class="attach-opt" id="attachWebBtn">🌐 Web Page</button>
+          </div>
+        </div>
+        <input id="fileInput" type="file" hidden multiple>
+        <textarea id="userInput" rows="1" placeholder="Message Ed..." autocomplete="off" aria-label="Message input" enterkeyhint="enter"></textarea>
+        <div class="action-group">
+          <div id="modeToggle" class="think-toggle" role="switch" aria-checked="false" title="Toggle Think mode" tabindex="0">
+            <div class="think-toggle-pod left">💡</div>
+            <div class="think-toggle-pod right">🧠</div>
+          </div>
+          <button id="micBtn" type="button" title="Voice input" aria-label="Start voice input" class="dock-btn mic-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          </button>
+          <button id="sendBtn" type="submit" title="Send message" aria-label="Send message">➤</button>
+        </div>
+      </form>
+    </div>
+  </main>
+
+  <!-- Routines Page (full-screen overlay) -->
+  <div id="routinesPage" class="rtn-page" hidden>
+    <div class="rtn-topbar">
+      <span class="rtn-topbar-title">🔁 Routines</span>
+      <button id="routinesCloseBtn" class="rtn-close-btn" type="button" aria-label="Close">✕</button>
+    </div>
+    <div class="rtn-content">
+      <!-- Add new routine form -->
+      <div class="rtn-form-card">
+        <div class="rtn-form-title">New Routine</div>
+
+        <label class="rtn-label">Name</label>
+        <input type="text" id="rtName" class="rtn-input" placeholder="e.g. Drink water, Latest News" maxlength="120">
+
+        <label class="rtn-label">Frequency</label>
+        <div class="rtn-radio-group" id="rtFreqGroup">
+          <button type="button" class="rtn-radio active" data-freq="recurring">Recurring</button>
+          <button type="button" class="rtn-radio" data-freq="once">Once</button>
+        </div>
+
+        <!-- ── Recurring sub-options ── -->
+        <div id="rtRecurringBlock" class="rtn-sub-block">
+          <label class="rtn-label">Repeat</label>
+          <div class="rtn-radio-group" id="rtRepeatGroup">
+            <button type="button" class="rtn-radio active" data-repeat="daily">Daily</button>
+            <button type="button" class="rtn-radio" data-repeat="weekly">Weekly</button>
+            <button type="button" class="rtn-radio" data-repeat="monthly">Monthly</button>
+            <button type="button" class="rtn-radio" data-repeat="annually">Annually</button>
+          </div>
+
+          <!-- Daily sub-options -->
+          <div id="rtDailyBlock" class="rtn-sub-block">
+            <div class="rtn-radio-group" id="rtDailyModeGroup">
+              <button type="button" class="rtn-radio small active" data-dmode="repeat_after">Repeat After</button>
+              <button type="button" class="rtn-radio small" data-dmode="custom_times">Custom Times</button>
+            </div>
+
+            <!-- Repeat After -->
+            <div id="rtRepeatAfterBlock" class="rtn-row-group">
+              <div class="rtn-field-row">
+                <label class="rtn-label-sm">Every</label>
+                <input type="number" id="rtRepeatHours" class="rtn-input rtn-input-sm" min="1" max="24" value="2">
+                <span class="rtn-label-sm">hour(s)</span>
+              </div>
+              <div class="rtn-field-row">
+                <label class="rtn-label-sm">From</label>
+                <input type="time" id="rtRepeatStart" class="rtn-input rtn-input-sm" value="08:00">
+                <label class="rtn-label-sm">To</label>
+                <input type="time" id="rtRepeatEnd" class="rtn-input rtn-input-sm" value="22:00">
+              </div>
+            </div>
+
+            <!-- Custom Times -->
+            <div id="rtCustomTimesBlock" class="rtn-row-group" hidden>
+              <div id="rtCustomTimesList" class="rtn-times-list"></div>
+              <div class="rtn-field-row">
+                <input type="time" id="rtCustomTimeInput" class="rtn-input rtn-input-sm" value="09:00">
+                <button type="button" id="rtAddTimeBtn" class="rtn-btn-sm">+ Add Time</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Weekly -->
+          <div id="rtWeeklyBlock" class="rtn-sub-block" hidden>
+            <label class="rtn-label">Day</label>
+            <div class="rtn-day-picker" id="rtDayPicker">
+              <button type="button" class="rtn-day-btn" data-day="0">Sun</button>
+              <button type="button" class="rtn-day-btn" data-day="1">Mon</button>
+              <button type="button" class="rtn-day-btn active" data-day="2">Tue</button>
+              <button type="button" class="rtn-day-btn" data-day="3">Wed</button>
+              <button type="button" class="rtn-day-btn" data-day="4">Thu</button>
+              <button type="button" class="rtn-day-btn" data-day="5">Fri</button>
+              <button type="button" class="rtn-day-btn" data-day="6">Sat</button>
+            </div>
+            <label class="rtn-label">Time</label>
+            <input type="time" id="rtWeeklyTime" class="rtn-input" value="10:00">
+          </div>
+
+          <!-- Monthly -->
+          <div id="rtMonthlyBlock" class="rtn-sub-block" hidden>
+            <label class="rtn-label">Day of Month</label>
+            <input type="number" id="rtMonthDay" class="rtn-input rtn-input-sm" min="1" max="31" value="1">
+            <label class="rtn-label">Time</label>
+            <input type="time" id="rtMonthlyTime" class="rtn-input" value="10:00">
+          </div>
+
+          <!-- Annually -->
+          <div id="rtAnnualBlock" class="rtn-sub-block" hidden>
+            <label class="rtn-label">Date</label>
+            <input type="date" id="rtAnnualDate" class="rtn-input">
+            <label class="rtn-label">Time</label>
+            <input type="time" id="rtAnnualTime" class="rtn-input" value="10:00">
+          </div>
+        </div>
+
+        <!-- ── Once sub-options ── -->
+        <div id="rtOnceBlock" class="rtn-sub-block" hidden>
+          <label class="rtn-label">Date</label>
+          <input type="date" id="rtOnceDate" class="rtn-input">
+          <label class="rtn-label">Time</label>
+          <input type="time" id="rtOnceTime" class="rtn-input" value="10:00">
+        </div>
+
+        <label class="rtn-label">Prompt <span class="rtn-hint-inline">(what should the assistant do?)</span></label>
+        <textarea id="rtPrompt" class="rtn-input rtn-textarea" rows="2" placeholder="e.g. Search latest tech news and summarize" maxlength="300"></textarea>
+
+        <button type="button" id="routineAddBtn" class="rtn-save-btn">Save Routine</button>
+      </div>
+
+      <!-- Saved routines — categorized accordion below form -->
+      <div id="routinesList" class="rtn-accordion"></div>
+    </div>
+  </div>
+
+  <!-- Settings Panel -->
+  <div id="settingsDim" class="canvas-dim" aria-hidden="true"></div>
+  <aside id="settingsPanel" class="settings-panel" aria-hidden="true" aria-label="Settings">
+    <div class="settings-header">
+      <span class="settings-title">⚙ Settings</span>
+      <div class="settings-header-actions">
+        <button id="settingsSaveBtn" class="settings-save-btn" type="button" disabled>Saved</button>
+        <button id="settingsResetBtn" class="canvas-btn icon-only settings-reset-icon-btn" type="button" title="Reset to defaults" aria-label="Reset settings to defaults">↺</button>
+        <button id="settingsCloseBtn" class="canvas-btn icon-only" type="button" aria-label="Close settings">✕</button>
+      </div>
+    </div>
+    <div class="settings-body">
+
+      <div class="settings-section">
+        <div class="settings-section-title">Web Search</div>
+        <div class="settings-row">
+          <div class="settings-label-row">
+            <label class="settings-label-text" for="s_targetSources">Target Sources</label>
+            <span class="settings-val-badge" id="targetSourcesVal">6</span>
+          </div>
+          <input type="range" id="s_targetSources" class="settings-range settings-range-dotted"
+            min="2" max="10" step="2" value="6"
+            list="targetSourcesTicks" aria-label="Target sources">
+          <datalist id="targetSourcesTicks">
+            <option value="2"></option><option value="4"></option>
+            <option value="6"></option><option value="8"></option>
+            <option value="10"></option>
+          </datalist>
+          <div class="settings-range-ticks" aria-hidden="true">
+            <span>2</span><span>4</span><span>6</span><span>8</span><span>10</span>
+          </div>
+          <div class="settings-hint">Websites scraped per search query. Higher = more sources, slower response.</div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Personal Memory</div>
+        <div class="settings-hint" style="margin-bottom:8px">Brief notes the assistant always remembers. One per line.</div>
+        <div id="memoryItemsContainer" class="memory-items-container"></div>
+        <div class="memory-add-row">
+          <input type="text" id="memoryNewInput" class="memory-new-input" placeholder="Add a memory…" maxlength="200">
+          <button type="button" id="memoryAddBtn" class="memory-add-btn" title="Add">+</button>
+        </div>
+        <button type="button" id="memorySaveBtn" class="settings-save-btn memory-save-btn" disabled>Saved</button>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Voice</div>
+        <div class="settings-row">
+          <div class="settings-label-row">
+            <label class="settings-label-text" for="s_autoSpeak">Auto-speak responses</label>
+            <button type="button" id="s_autoSpeak" class="settings-toggle" role="switch" aria-checked="false">
+              <span class="settings-toggle-thumb"></span>
+            </button>
+          </div>
+          <div class="settings-hint">Automatically read each response aloud when it finishes (max 300 chars).</div>
+        </div>
+      </div>
+
+      <div class="settings-section settings-danger-section">
+        <div class="settings-section-title">
+          Danger Zone
+          <span class="settings-advanced-tag">DESTRUCTIVE</span>
+        </div>
+        <div class="settings-row">
+          <div class="settings-label-row" style="margin-bottom:8px">
+            <span class="settings-label-text">Delete All Data</span>
+          </div>
+          <p class="settings-hint" style="margin-bottom:10px">Permanently removes all chat sessions, uploaded files, and workspace data. This cannot be undone.</p>
+          <button id="deleteAllDataBtn" class="settings-delete-all-btn" type="button">Delete Everything</button>
+        </div>
+      </div>
+
+    </div>
+    <div class="settings-footer" hidden></div>
+  </aside>
+
+  <div id="canvasDim" class="canvas-dim" aria-hidden="true"></div>
+  <aside id="codeCanvas" class="code-canvas" aria-hidden="true" aria-label="Code viewer">
+    <div class="canvas-header">
+      <div class="canvas-title">
+        <span class="canvas-file-icon">📄</span>
+        <span id="canvasFileName">code</span>
+        <span id="canvasFileLang" class="canvas-lang-badge"></span>
+      </div>
+      <div class="canvas-actions">
+        <button id="canvasCopyBtn" class="canvas-btn" type="button" aria-label="Copy code">Copy</button>
+        <button id="canvasCloseBtn" class="canvas-btn icon-only" type="button" aria-label="Close canvas">✕</button>
+      </div>
+    </div>
+    <div class="canvas-body">
+      <pre><code id="canvasCode"></code></pre>
+    </div>
+  </aside>
+
+  <!-- File viewer modal -->
+  <div id="fileViewerDim" class="canvas-dim" aria-hidden="true"></div>
+  <div id="fileViewerPanel" class="file-viewer-panel" aria-hidden="true">
+    <div class="file-viewer-header">
+      <span class="file-viewer-name" id="fileViewerName">file.txt</span>
+      <div class="file-viewer-actions">
+        <button id="fileViewerCopyBtn" class="canvas-btn" type="button">Copy</button>
+        <button id="fileViewerCloseBtn" class="canvas-btn icon-only" type="button">✕</button>
+      </div>
+    </div>
+    <div class="file-viewer-body">
+      <pre id="fileViewerPre"><code id="fileViewerCode"></code></pre>
+    </div>
+  </div>
+
+  <!-- Accept/Reject edit overlay -->
+  <div id="editProposalOverlay" class="edit-proposal-overlay" hidden>
+    <div class="edit-proposal-card">
+      <div class="edit-proposal-header">
+        <span class="edit-proposal-icon">✏️</span>
+        <div class="edit-proposal-meta">
+          <span class="edit-proposal-title" id="editProposalTitle">Proposed Edit</span>
+          <span class="edit-proposal-file" id="editProposalFile"></span>
+        </div>
+      </div>
+      <div class="edit-proposal-diff" id="editProposalDiff"></div>
+      <div class="edit-proposal-actions">
+        <button id="editRejectBtn" class="edit-reject-btn" type="button">✕ Reject</button>
+        <button id="editAcceptBtn" class="edit-accept-btn" type="button">✓ Accept</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "name": "Ed v2",
+  "short_name": "Ed v2",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f5f5f5",
+  "theme_color": "#4285f4",
+  "icons": [
+    {
+      "src": "/Icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/Icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}

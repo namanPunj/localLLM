@@ -1,9 +1,11 @@
 package chat
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/google/uuid"
@@ -49,11 +51,27 @@ type MemoryStore interface {
 	GetItems() []string
 }
 
+// ExchangeStore provides RAG-based session memory — stores and retrieves
+// per-turn summaries with embeddings for relevant context retrieval.
+type ExchangeStore interface {
+	SaveExchange(sessionID, userQuery, summary, fullResponse string, embedding []float32) error
+	GetExchanges(sessionID string) ([]Exchange, error)
+}
+
+// Exchange represents one past user→assistant turn with a compact summary.
+type Exchange struct {
+	UserQuery    string
+	Summary      string
+	FullResponse string
+	Embedding    []float32
+}
+
 // Pipeline runs one full chat turn: context-build -> model -> stream.
 type Pipeline struct {
 	Ollama     *Ollama
 	Sessions   SessionStore // persistent store
 	IncogStore SessionStore // in-memory store for incognito chats
+	Exchanges  ExchangeStore
 	Files      FileStore
 	RAG        RAG
 	Executor   ToolExecutor
@@ -156,6 +174,112 @@ func (p *Pipeline) fileRAG(ctx context.Context, fileTexts []string, query string
 		sb.WriteString(clean[idx].Text)
 	}
 	return sb.String()
+}
+
+// retrieveRelevantExchanges embeds the current query and retrieves the top-k
+// most relevant past exchanges from this session's exchange store.
+// Returns formatted context string and the number of exchanges matched.
+func (p *Pipeline) retrieveRelevantExchanges(ctx context.Context, sessionID, query string, k int) (string, int) {
+	if p.Exchanges == nil {
+		return "", 0
+	}
+	exchanges, err := p.Exchanges.GetExchanges(sessionID)
+	if err != nil || len(exchanges) == 0 {
+		return "", 0
+	}
+
+	// Embed the current query
+	queryVec, err := p.Ollama.Embed(ctx, query)
+	if err != nil || len(queryVec) == 0 {
+		return "", 0
+	}
+
+	// Build vector items from exchanges that have embeddings
+	var items []rag.VecItem
+	var exMap []int // maps item index -> exchange index
+	for i, ex := range exchanges {
+		if len(ex.Embedding) > 0 {
+			items = append(items, rag.VecItem{Vec: ex.Embedding})
+			exMap = append(exMap, i)
+		}
+	}
+	if len(items) == 0 {
+		return "", 0
+	}
+
+	if k > len(items) {
+		k = len(items)
+	}
+	topIdx := rag.TopK(items, queryVec, k)
+
+	var sb strings.Builder
+	for i, idx := range topIdx {
+		ex := exchanges[exMap[idx]]
+		if i > 0 {
+			sb.WriteString("\n")
+		}
+		sb.WriteString(fmt.Sprintf("- User asked: %s → %s", ex.UserQuery, ex.Summary))
+	}
+	return sb.String(), len(topIdx)
+}
+
+// summarizeResponse generates a 1-2 line summary of the assistant's response.
+func (p *Pipeline) summarizeResponse(ctx context.Context, userQuery, response string) string {
+	if len(response) < 100 {
+		return response // short enough to use as-is
+	}
+	// Truncate very long responses for summarization input
+	input := response
+	if len(input) > 2000 {
+		input = input[:2000]
+	}
+	model := p.Ollama.InstructModel
+	if model == "" {
+		model = p.Ollama.ChatModel
+	}
+	reqBody, _ := json.Marshal(ollamaChatRequest{
+		Model: model,
+		Messages: []ollamaMessage{
+			{Role: "system", Content: "Summarize the assistant's response in 1-2 short sentences. Keep key facts, names, numbers. No commentary."},
+			{Role: "user", Content: fmt.Sprintf("User asked: %s\n\nAssistant responded: %s", userQuery, input)},
+		},
+		Stream:    false,
+		KeepAlive: "30m",
+		Options:   map[string]any{"temperature": 0.1, "num_ctx": 1024},
+	})
+	req, err := http.NewRequestWithContext(ctx, "POST", p.Ollama.BaseURL+"/api/chat", bytes.NewReader(reqBody))
+	if err != nil {
+		return truncateStr(response, 200)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := p.Ollama.HTTP.Do(req)
+	if err != nil {
+		return truncateStr(response, 200)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return truncateStr(response, 200)
+	}
+	var result struct {
+		Message struct {
+			Content string `json:"content"`
+		} `json:"message"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return truncateStr(response, 200)
+	}
+	s := strings.TrimSpace(result.Message.Content)
+	if s == "" {
+		return truncateStr(response, 200)
+	}
+	return s
+}
+
+func truncateStr(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "…"
 }
 
 // addLineNumbers prefixes each line of content with a 1-based line number.
@@ -685,37 +809,64 @@ func (p *Pipeline) Run(ctx context.Context, req ChatRequest, emit func(StreamEve
 	}
 	opts := req.ModelOverride
 
-	// Load persistent context summary (covers messages 0..cursor-1)
-	summary, cursor, _ := store.GetContextSummary(sessionID)
+	// ── RAG-based session memory ──────────────────────────────────────────
+	// Instead of keeping full history in context (which grows), we:
+	// 1. Keep only the last 2 messages (most recent exchange) as raw context
+	// 2. Retrieve top-3 relevant past exchanges via embedding similarity
+	// 3. Inject their summaries as lightweight context
+	var ragExchangeCtx string
+	var ragExchangeCount int
+	isWorkspace := len(req.AgentFiles) > 0
 
-	// Build the model-facing view: [summary system msg] + history[cursor:]
-	effectiveHistory := buildEffectiveHistory(history, summary, cursor)
-
-	// Rough history budget (maxCtx minus ~700 for system+user+headroom)
-	historyBudget := maxCtx - 700
-	if historyBudget < 200 {
-		historyBudget = 200
+	if !isWorkspace && p.Exchanges != nil && len(history) > 2 {
+		_ = emit(StreamEvent{Type: "meta", Meta: map[string]any{
+			"stage": "exchange_retrieval",
+		}})
+		ragExchangeCtx, ragExchangeCount = p.retrieveRelevantExchanges(ctx, sessionID, req.Message, 3)
+		_ = emit(StreamEvent{Type: "meta", Meta: map[string]any{
+			"stage":    "exchange_retrieved",
+			"matches":  ragExchangeCount,
+		}})
 	}
 
-	// Auto-compact when effective history fills > 90% of history budget
-	histTok := estimateTokensMsg(effectiveHistory)
-	if histTok > int(float64(historyBudget)*0.9) && len(history) > 4 {
-		_ = emit(StreamEvent{Type: "meta", Meta: map[string]any{
-			"stage":    "context_compacting",
-			"messages": len(history),
-			"cursor":   cursor,
-		}})
-		newSummary, newCursor, compactErr := p.compactContext(ctx, history, summary, cursor)
-		if compactErr == nil && newCursor > cursor {
-			_ = store.SetContextSummary(sessionID, newSummary, newCursor)
-			summary = newSummary
-			cursor = newCursor
-			effectiveHistory = buildEffectiveHistory(history, summary, cursor)
+	// For normal chat: keep only the last 2 messages + RAG summaries
+	// For workspace: keep full effective history (needs more context)
+	var effectiveHistory []Message
+	if !isWorkspace && ragExchangeCount > 0 {
+		// Last exchange (1 user + 1 assistant) as raw context
+		keep := 2
+		if keep > len(history) {
+			keep = len(history)
 		}
-		_ = emit(StreamEvent{Type: "meta", Meta: map[string]any{
-			"stage": "context_compacted",
-			"ok":    compactErr == nil && newCursor > cursor,
-		}})
+		effectiveHistory = history[len(history)-keep:]
+	} else {
+		// Fallback: use old linear approach with compaction
+		summary, cursor, _ := store.GetContextSummary(sessionID)
+		effectiveHistory = buildEffectiveHistory(history, summary, cursor)
+
+		historyBudget := maxCtx - 700
+		if historyBudget < 200 {
+			historyBudget = 200
+		}
+		histTok := estimateTokensMsg(effectiveHistory)
+		if histTok > int(float64(historyBudget)*0.75) && len(history) > 4 {
+			_ = emit(StreamEvent{Type: "meta", Meta: map[string]any{
+				"stage":    "context_compacting",
+				"messages": len(history),
+				"cursor":   cursor,
+			}})
+			newSummary, newCursor, compactErr := p.compactContext(ctx, history, summary, cursor)
+			if compactErr == nil && newCursor > cursor {
+				_ = store.SetContextSummary(sessionID, newSummary, newCursor)
+				summary = newSummary
+				cursor = newCursor
+				effectiveHistory = buildEffectiveHistory(history, summary, cursor)
+			}
+			_ = emit(StreamEvent{Type: "meta", Meta: map[string]any{
+				"stage": "context_compacted",
+				"ok":    compactErr == nil && newCursor > cursor,
+			}})
+		}
 	}
 
 	// ── Agentic path: project files — model reads on demand ──────────────────
@@ -811,6 +962,10 @@ func (p *Pipeline) Run(ctx context.Context, req ChatRequest, emit func(StreamEve
 	var memItems []string
 	if p.Memory != nil {
 		memItems = p.Memory.GetItems()
+	}
+	// Inject RAG-retrieved exchange summaries as conversation memory
+	if ragExchangeCtx != "" {
+		memItems = append(memItems, "[Relevant past exchanges from this conversation]\n"+ragExchangeCtx)
 	}
 	msgs, usage := BuildMessagesWithLimit(effectiveHistory, req.Message, fileContent, snippets, sources, maxCtx, memItems)
 
@@ -961,8 +1116,19 @@ func (p *Pipeline) Run(ctx context.Context, req ChatRequest, emit func(StreamEve
 		return emit(StreamEvent{Type: "error", Error: fmt.Sprintf("failed to persist user message: %v", err)})
 	}
 	metaJSON, _ := json.Marshal(capturedMeta)
-	if err := store.AppendMessage(sessionID, Message{Role: "assistant", Content: fullResp.String(), MetaEvents: string(metaJSON)}); err != nil {
+	respText := fullResp.String()
+	if err := store.AppendMessage(sessionID, Message{Role: "assistant", Content: respText, MetaEvents: string(metaJSON)}); err != nil {
 		return emit(StreamEvent{Type: "error", Error: fmt.Sprintf("failed to persist assistant message: %v", err)})
+	}
+
+	// Save exchange for RAG-based session memory (async, don't block response)
+	if !isWorkspace && p.Exchanges != nil && respText != "" {
+		go func() {
+			bgCtx := context.Background()
+			summary := p.summarizeResponse(bgCtx, req.Message, respText)
+			embedding, _ := p.Ollama.Embed(bgCtx, req.Message)
+			_ = p.Exchanges.SaveExchange(sessionID, req.Message, summary, respText, embedding)
+		}()
 	}
 
 	return emit(StreamEvent{Type: "done", Meta: map[string]any{

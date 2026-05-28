@@ -161,15 +161,14 @@ function updateContextChart(usage) {
   // Rebuild panel content (if open, update live)
   buildCtxPanel(segments, avail, total, usage);
 
-  // Proactive auto-upgrade: when context hits 90%, queue upgrade for next request
-  if (pct >= 90 && currentNumCtx < 10240 && currentSessionID && !_ctxUpgradePending) {
-    _ctxUpgradePending = true;
-    // Schedule upgrade after current stream finishes (model can't be reloaded mid-stream)
-    _ctxUpgradeSessionId = currentSessionID;
+  // Proactive auto-compact: when context hits 90%, queue compact for after stream ends
+  if (pct >= 90 && currentSessionID && !_ctxCompactPending) {
+    _ctxCompactPending = true;
+    _ctxCompactSessionId = currentSessionID;
   }
 }
-let _ctxUpgradePending = false;
-let _ctxUpgradeSessionId = null;
+let _ctxCompactPending = false;
+let _ctxCompactSessionId = null;
 
 function buildCtxPanel(segments, avail, total, usage) {
   let html = `<div class="ctx-panel-title">Context Window</div>`;
@@ -195,7 +194,24 @@ function buildCtxPanel(segments, avail, total, usage) {
     <button class="ctx-compact-btn" id="ctxCompactBtn">⚡ Compact</button>
     <button class="ctx-forget-btn" id="ctxForgetBtn">🗑 Forget</button>
   </div>`;
+  // Debug log section
+  html += `<hr class="ctx-panel-divider">`;
+  html += `<div class="ctx-panel-title" style="font-size:0.7rem;opacity:0.6;cursor:pointer" id="ctxDebugToggle">Debug Log ▸</div>`;
+  html += `<pre id="ctxDebugLog" style="display:none;max-height:120px;overflow-y:auto;font-size:0.65rem;color:var(--text-muted);white-space:pre-wrap;margin:4px 0 0;padding:4px;background:rgba(0,0,0,0.15);border-radius:4px">${_ctxLogEntries.join('\n')}</pre>`;
   ctxPanel.innerHTML = html;
+
+  $('ctxDebugToggle').onclick = (e) => {
+    e.stopPropagation();
+    const log = document.getElementById('ctxDebugLog');
+    const toggle = document.getElementById('ctxDebugToggle');
+    if (log.style.display === 'none') {
+      log.style.display = 'block';
+      toggle.textContent = 'Debug Log ▾';
+    } else {
+      log.style.display = 'none';
+      toggle.textContent = 'Debug Log ▸';
+    }
+  };
 
   $('ctxForgetBtn').onclick = async () => {
     if (!currentSessionID) return;
@@ -276,6 +292,23 @@ ctxChart.onclick = (e) => {
 // Close panel when clicking outside
 document.addEventListener('click', () => { ctxPanel.hidden = true; });
 
+// ============================================================
+//  CONTEXT DEBUG LOG — shows what's happening behind the scenes
+// ============================================================
+const _ctxLogEntries = [];
+const CTX_LOG_MAX = 50;
+
+function ctxLog(msg) {
+  const ts = new Date().toLocaleTimeString();
+  const entry = `[${ts}] ${msg}`;
+  _ctxLogEntries.push(entry);
+  if (_ctxLogEntries.length > CTX_LOG_MAX) _ctxLogEntries.shift();
+  console.log('%c[ctx]', 'color:#7dd3fc', msg);
+  // Update panel if open
+  const logEl = document.getElementById('ctxDebugLog');
+  if (logEl) logEl.textContent = _ctxLogEntries.join('\n');
+}
+
 // ── Auto-title: generate a short name from first query ──
 const AUTO_TITLED_KEY = 'assistant_auto_titled';
 let autoTitled = {};
@@ -354,16 +387,24 @@ function updateSaveBtn() {
   const show = !!(tempSessionId && currentSessionID === tempSessionId);
   btn.hidden = !show;
   btn.style.display = show ? '' : 'none';
+  // Reset button text when showing (in case it was "Saved" from a previous save)
+  if (show) {
+    const actionEl = btn.querySelector('.save-temp-action');
+    if (actionEl && actionEl.textContent === '✓ Saved') actionEl.textContent = 'Save';
+  }
 }
 
-// Convert the current temp session into a permanent one
+// Convert the current temp session into a permanent one.
+// Safe to call during streaming — doesn't interrupt the active response.
 function saveCurrentSession() {
   if (!tempSessionId || currentSessionID !== tempSessionId) return;
   clearTempSession();
-  loadHistory(); // session now visible in sidebar
+  // Reload sidebar to show the now-permanent session (non-blocking)
+  loadHistory();
   const btn = $('saveTempBtn');
   if (btn) {
-    btn.querySelector('.save-temp-action').textContent = '✓ Saved';
+    const actionEl = btn.querySelector('.save-temp-action');
+    if (actionEl) actionEl.textContent = '✓ Saved';
     setTimeout(() => { btn.hidden = true; btn.style.display = 'none'; }, 1200);
   }
 }
@@ -498,35 +539,28 @@ async function loadWorkspaceModel() {
   }
 }
 
-// Called after a response when context is at/near capacity — upgrades to 10k.
-async function upgradeContext(sessionId) {
-  if (!sessionId || currentNumCtx >= 10240) return;
-  // Persist the upgrade so the server uses 10k on future requests for this session
+// Called after a response when context is at/near capacity — compacts instead of upgrading.
+async function autoCompactContext(sessionId) {
+  if (!sessionId) return;
+  ctxLog('Context near capacity — auto-compacting…');
   try {
-    await fetch(`/sessions/${sessionId}/settings`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ num_ctx: 10240 }),
-    });
-  } catch {}
-  await wakeModel(10240, 'Context growing — upgrading to 10k window…');
-  // Show inline alert
-  const note = document.createElement('div');
-  note.className = 'ctx-upgrade-banner';
-  note.innerHTML = `<span class="ctx-upgrade-icon">⚡</span>
-    <span class="ctx-upgrade-text">Switched to <b>10k context</b> — responses may be slower.
-    For faster responses, <a href="#" class="ctx-compress-link">compress context</a> from the context menu.</span>`;
-  note.querySelector('.ctx-compress-link').addEventListener('click', async (e) => {
-    e.preventDefault();
-    note.querySelector('.ctx-upgrade-text').textContent = 'Compressing…';
-    try {
-      await fetch(`/sessions/${sessionId}/compress`, { method: 'POST' });
-      note.querySelector('.ctx-upgrade-text').textContent = 'Context compressed. Responses will be faster now.';
-    } catch { note.querySelector('.ctx-upgrade-text').textContent = 'Compression failed.'; }
-    setTimeout(() => note.remove(), 4000);
-  });
-  chatContainer.appendChild(note);
-  chatContainer.scrollTop = chatContainer.scrollHeight;
+    const res = await fetch(`/sessions/${sessionId}/compress`, { method: 'POST' });
+    if (res.ok) {
+      ctxLog('Context compacted successfully.');
+      // Show subtle inline notice
+      const note = document.createElement('div');
+      note.className = 'ctx-upgrade-banner';
+      note.innerHTML = `<span class="ctx-upgrade-icon">⚡</span>
+        <span class="ctx-upgrade-text">Context auto-compacted — older messages summarized to stay within 4k window.</span>`;
+      chatContainer.appendChild(note);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+      setTimeout(() => note.remove(), 5000);
+    } else {
+      ctxLog('Auto-compact failed: ' + res.statusText);
+    }
+  } catch (e) {
+    ctxLog('Auto-compact error: ' + e.message);
+  }
 }
 
 // --- Stream Cache ---
@@ -1174,16 +1208,9 @@ async function switchSession(id) {
         renderProjectFiles(data.project_files || []);
         loadWorkspaceModel();
       } else {
-        // Restore context size for normal sessions
-        let targetCtx = 4096;
-        try {
-          const sr = await fetch(`/sessions/${id}/settings`);
-          if (sr.ok) {
-            const ss = await sr.json();
-            if (ss.num_ctx > 0) targetCtx = ss.num_ctx;
-          }
-        } catch {}
-        wakeModel(targetCtx, `Restoring session context (${Math.round(targetCtx / 1024)}k)…`);
+        // Normal chat sessions always use 4k context — compact instead of growing
+        const targetCtx = 4096;
+        wakeModel(targetCtx);
       }
       // Sync context bar with restored size
       if (lastContextUsage) updateContextChart({ ...lastContextUsage, num_ctx: targetCtx });
@@ -2698,11 +2725,16 @@ async function sendMessage(e) {
             streamCache[streamState.sessionId].sources = ev.meta.sources;
           }
           if (ev.meta?.context_usage) {
+            const cu = ev.meta.context_usage;
             // Sync currentNumCtx with what the server actually used
-            if (ev.meta.context_usage.num_ctx) currentNumCtx = ev.meta.context_usage.num_ctx;
-            updateContextChart(ev.meta.context_usage);
-            if ((ev.meta.context_usage.compressed || 0) > 0) {
+            if (cu.num_ctx) currentNumCtx = cu.num_ctx;
+            updateContextChart(cu);
+            const used = (cu.system||0)+(cu.history||0)+(cu.files||0)+(cu.rag||0)+(cu.user_turn||0);
+            const total = cu.num_ctx || cu.limit;
+            ctxLog(`ctx: ${used}/${total} (${Math.round(used/total*100)}%) — sys:${cu.system} hist:${cu.history} files:${cu.files} rag:${cu.rag} user:${cu.user_turn} avail:${cu.available}${cu.compressed ? ' compressed:'+cu.compressed : ''}`);
+            if ((cu.compressed || 0) > 0) {
               streamState.ctxOverloaded = true;
+              ctxLog(`⚠ ${cu.compressed} messages were dropped to fit context`);
             }
           }
           saveCache();
@@ -2844,12 +2876,12 @@ async function sendMessage(e) {
           streamCache[streamState.sessionId].done = true;
           saveCache();
 
-          // Auto-upgrade context if compressed OR proactively at 90%
-          const needsUpgrade = streamState.ctxOverloaded || (_ctxUpgradePending && _ctxUpgradeSessionId === streamState.sessionId);
-          if (needsUpgrade && streamState.sessionId === currentSessionID) {
-            _ctxUpgradePending = false;
-            _ctxUpgradeSessionId = null;
-            upgradeContext(streamState.sessionId);
+          // Auto-compact context if compressed OR proactively at 90%
+          const needsCompact = streamState.ctxOverloaded || (_ctxCompactPending && _ctxCompactSessionId === streamState.sessionId);
+          if (needsCompact && streamState.sessionId === currentSessionID) {
+            _ctxCompactPending = false;
+            _ctxCompactSessionId = null;
+            autoCompactContext(streamState.sessionId);
           }
           // Auto-title on first message of a new session
           if (streamState.isNewSession) {
@@ -3243,18 +3275,29 @@ function handleBlobStage(blobBar, meta, streamState) {
     case 'history_compress_done':
       updateStatusText(streamState, meta.ok ? 'History compressed. Composing…' : 'Composing response…');
       break;
+    case 'exchange_retrieval':
+      updateStatusText(streamState, 'Searching past exchanges…');
+      ctxLog('RAG: searching past exchanges for relevant context');
+      break;
+    case 'exchange_retrieved':
+      updateStatusText(streamState, meta.matches > 0 ? `Found ${meta.matches} relevant exchange(s). Composing…` : 'Composing response…');
+      ctxLog(`RAG: retrieved ${meta.matches || 0} relevant past exchanges`);
+      break;
     case 'context_compacting':
       updateStatusText(streamState, `Compacting context (${meta.messages || ''} messages)…`);
+      ctxLog(`Server compacting: ${meta.messages || '?'} messages, cursor=${meta.cursor || 0}`);
       if (streamState) streamState._compacting = true;
       break;
     case 'context_compacted':
       updateStatusText(streamState, meta.ok ? 'Context compacted. Composing…' : 'Composing response…');
+      ctxLog(`Server compact ${meta.ok ? 'succeeded' : 'failed'}`);
       if (streamState) streamState._compacting = false;
       break;
 
     // ── Tool calls → TOOLS blob ──
     case 'tool_call': {
       const toolName = meta.tool || 'tool';
+      ctxLog(`Tool call: ${toolName}(${meta.args ? JSON.stringify(meta.args).slice(0,80) : ''})`);
       if (toolName === 'web_search') {
         // web_search detailed steps go to RESEARCHED
         showBlob(blobBar, 'researched');
@@ -4414,16 +4457,23 @@ initRoutines();
 window.addEventListener('DOMContentLoaded', async () => {
   initSTT();
 
-  // Delete this tab's leftover temp session from a previous load, then clear it.
-  // Sessions are created lazily on first message — no eager creation here.
+  // Restore temp session from previous page load instead of deleting it.
+  // Temp sessions persist across reloads — only deleted when user starts a new chat
+  // or explicitly discards.
   if (tempSessionId) {
-    fetch(`/sessions/${tempSessionId}`, { method: 'DELETE' }).catch(() => {});
-    clearTempSession();
+    currentSessionID = tempSessionId;
+    persistCurrentSessionId();
+    hideLanding();
+    await loadHistory();
+    updateSaveBtn();
+    // Load the session's messages into the chat view
+    await switchSession(tempSessionId);
+  } else {
+    currentSessionID = '';
+    persistCurrentSessionId();
+    showLanding(false);
+    await loadHistory();
+    updateSaveBtn();
   }
-  currentSessionID = '';
-  persistCurrentSessionId();
-  showLanding(false);
   setSendBtnMode('send');
-  await loadHistory();
-  updateSaveBtn();
 });

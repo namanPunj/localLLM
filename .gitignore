@@ -11,6 +11,12 @@ server.log
 # Data directories
 data/
 
+# Build output
+assistant
+
+# PDFs / docs
+*.pdf
+
 # IDE / OS
 .directory
 .claude/

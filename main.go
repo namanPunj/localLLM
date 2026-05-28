@@ -43,6 +43,7 @@ func main() {
 		Ollama:     ollama,
 		Sessions:   store,
 		IncogStore: memStore,
+		Exchanges:  &exchangeAdapter{store: store},
 		Files:      fileStore,
 		RAG:        ragPipe,
 		Executor:   exec,
@@ -82,4 +83,30 @@ func main() {
 	if err := srv.Run(cfg.Addr); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// exchangeAdapter bridges sessions.Store → chat.ExchangeStore.
+type exchangeAdapter struct {
+	store *sessions.Store
+}
+
+func (a *exchangeAdapter) SaveExchange(sessionID, userQuery, summary, fullResponse string, embedding []float32) error {
+	return a.store.SaveExchange(sessionID, userQuery, summary, fullResponse, embedding)
+}
+
+func (a *exchangeAdapter) GetExchanges(sessionID string) ([]chat.Exchange, error) {
+	exs, err := a.store.GetExchanges(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]chat.Exchange, len(exs))
+	for i, ex := range exs {
+		out[i] = chat.Exchange{
+			UserQuery:    ex.UserQuery,
+			Summary:      ex.Summary,
+			FullResponse: ex.FullResponse,
+			Embedding:    ex.Embedding,
+		}
+	}
+	return out, nil
 }

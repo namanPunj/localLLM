@@ -3,6 +3,7 @@ package sessions
 import (
 	"database/sql"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"sync"
@@ -58,7 +59,8 @@ func NewStore(path string) (*Store, error) {
 	if _, err := db.Exec(foldersSchema); err != nil {
 		return nil, err
 	}
-	db.Exec(sessionContextSchema) // idempotent
+	db.Exec(sessionContextSchema)  // idempotent
+	db.Exec(exchangeSchema)        // RAG-based session memory
 	return &Store{db: db}, nil
 }
 
@@ -566,4 +568,94 @@ func (s *Store) RemoveSessionFromFolder(sessionID string) error {
 	defer s.mu.Unlock()
 	_, err := s.db.Exec(`DELETE FROM folder_sessions WHERE session_id = ?`, sessionID)
 	return err
+}
+
+// ── Exchange-based session memory (RAG) ──
+
+// exchangeSchema stores per-turn summaries with embeddings for retrieval.
+const exchangeSchema = `
+CREATE TABLE IF NOT EXISTS session_exchanges (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  session_id TEXT NOT NULL,
+  user_query TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  full_response TEXT NOT NULL,
+  embedding BLOB,
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_exchanges_session ON session_exchanges(session_id);
+`
+
+// Exchange represents one user→assistant turn with a compact summary.
+type Exchange struct {
+	ID           int
+	UserQuery    string
+	Summary      string
+	FullResponse string
+	Embedding    []float32
+}
+
+// SaveExchange stores a turn's user query, summary, full response, and embedding.
+func (s *Store) SaveExchange(sessionID, userQuery, summary, fullResponse string, embedding []float32) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var embBlob []byte
+	if len(embedding) > 0 {
+		embBlob = float32sToBytes(embedding)
+	}
+	_, err := s.db.Exec(
+		`INSERT INTO session_exchanges(session_id, user_query, summary, full_response, embedding, created_at) VALUES(?,?,?,?,?,?)`,
+		sessionID, userQuery, summary, fullResponse, embBlob, time.Now().Unix(),
+	)
+	return err
+}
+
+// GetExchanges returns all exchanges for a session, ordered oldest first.
+func (s *Store) GetExchanges(sessionID string) ([]Exchange, error) {
+	rows, err := s.db.Query(
+		`SELECT id, user_query, summary, full_response, embedding FROM session_exchanges WHERE session_id = ? ORDER BY id ASC`,
+		sessionID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Exchange
+	for rows.Next() {
+		var ex Exchange
+		var embBlob []byte
+		if err := rows.Scan(&ex.ID, &ex.UserQuery, &ex.Summary, &ex.FullResponse, &embBlob); err != nil {
+			return nil, err
+		}
+		if len(embBlob) > 0 {
+			ex.Embedding = bytesToFloat32s(embBlob)
+		}
+		out = append(out, ex)
+	}
+	return out, nil
+}
+
+// float32sToBytes converts a float32 slice to a byte slice (little-endian).
+func float32sToBytes(v []float32) []byte {
+	buf := make([]byte, len(v)*4)
+	for i, f := range v {
+		bits := math.Float32bits(f)
+		buf[i*4+0] = byte(bits)
+		buf[i*4+1] = byte(bits >> 8)
+		buf[i*4+2] = byte(bits >> 16)
+		buf[i*4+3] = byte(bits >> 24)
+	}
+	return buf
+}
+
+// bytesToFloat32s converts a byte slice back to a float32 slice.
+func bytesToFloat32s(b []byte) []float32 {
+	n := len(b) / 4
+	v := make([]float32, n)
+	for i := 0; i < n; i++ {
+		bits := uint32(b[i*4]) | uint32(b[i*4+1])<<8 | uint32(b[i*4+2])<<16 | uint32(b[i*4+3])<<24
+		v[i] = math.Float32frombits(bits)
+	}
+	return v
 }
